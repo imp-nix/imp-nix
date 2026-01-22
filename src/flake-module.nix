@@ -77,6 +77,9 @@ let
       Set to false for deferred functor evaluation to prevent infinite recursion.
       When a functor contributes to perSystem options, and config.imp.args
       references those options, including it creates a cycle.
+
+    buildDeps: Collected build dependencies from `__outputs.perSystem.buildDeps.*`.
+      Bundles can declare dependencies that other bundles' packages should use.
   */
   mkPerSystemArgs =
     {
@@ -85,6 +88,7 @@ let
       self',
       inputs',
       perSystemConfig ? null,
+      buildDeps ? { },
     }:
     {
       inherit
@@ -96,6 +100,7 @@ let
         inputs
         inputs'
         imp
+        buildDeps
         ;
       ${cfg.registry.name} = registry;
       exports = exportSinks;
@@ -297,7 +302,13 @@ in
           ...
         }:
         let
-          perSystemArgs = mkPerSystemArgs {
+          nonFormatterOutputs = filterAttrs (k: _: k != "formatter") builtOutputs.perSystem;
+
+          isBuildDeps = k: lib.hasPrefix "buildDeps." k;
+          buildDepsOutputs = filterAttrs (k: _: isBuildDeps k) nonFormatterOutputs;
+          otherOutputs = filterAttrs (k: _: !isBuildDeps k) nonFormatterOutputs;
+
+          baseArgs = mkPerSystemArgs {
             inherit
               pkgs
               system
@@ -306,9 +317,27 @@ in
               ;
             perSystemConfig = config;
           };
-          nonFormatterOutputs = filterAttrs (k: _: k != "formatter") builtOutputs.perSystem;
 
-          # Evaluate static outputs
+          evaluatedBuildDeps = lib.mapAttrs' (
+            outputPath: value:
+            let
+              name = lib.removePrefix "buildDeps." outputPath;
+              evaluated = if builtins.isFunction value then value baseArgs else value;
+            in
+            lib.nameValuePair name evaluated
+          ) buildDepsOutputs;
+
+          perSystemArgs = mkPerSystemArgs {
+            inherit
+              pkgs
+              system
+              self'
+              inputs'
+              ;
+            perSystemConfig = config;
+            buildDeps = evaluatedBuildDeps;
+          };
+
           evaluatedOutputs = lib.mapAttrs (
             outputPath: value:
             let
@@ -316,7 +345,7 @@ in
               evaluated = if builtins.isFunction value then value perSystemArgs else value;
             in
             lib.setAttrByPath parts evaluated
-          ) nonFormatterOutputs;
+          ) otherOutputs;
 
           merged = lib.foldl' lib.recursiveUpdate { } (lib.attrValues evaluatedOutputs);
         in
@@ -335,8 +364,7 @@ in
           ...
         }:
         let
-          # perSystemConfig = null to avoid infinite recursion
-          perSystemArgs = mkPerSystemArgs {
+          baseArgs = mkPerSystemArgs {
             inherit
               pkgs
               system
@@ -345,10 +373,48 @@ in
               ;
           };
 
-          # Unwrap { value, strategy } output record or evaluate function
+          isBuildDepsKey = k: lib.hasPrefix "buildDeps." k;
+          staticBuildDepsOutputs = filterAttrs (k: _: isBuildDepsKey k) builtOutputs.perSystem;
+          staticBuildDeps = lib.mapAttrs' (
+            outputPath: value:
+            let
+              name = lib.removePrefix "buildDeps." outputPath;
+              evaluated = if builtins.isFunction value then value baseArgs else value;
+            in
+            lib.nameValuePair name evaluated
+          ) staticBuildDepsOutputs;
+
+          # First pass: extract buildDeps from functors
+          extractFunctorBuildDeps =
+            {
+              functor,
+              isFunctor,
+              source,
+            }:
+            let
+              fn = if isFunctor then functor.__functor functor else functor;
+              result = fn baseArgs;
+              outputs = result.__outputs or { };
+              perSystem = outputs.perSystem or { };
+            in
+            perSystem.buildDeps or { };
+
+          functorBuildDeps = map extractFunctorBuildDeps builtOutputs.deferredFunctors;
+          mergedFunctorBuildDeps = lib.foldl' lib.recursiveUpdate { } functorBuildDeps;
+          allBuildDeps = lib.recursiveUpdate staticBuildDeps mergedFunctorBuildDeps;
+
+          perSystemArgs = mkPerSystemArgs {
+            inherit
+              pkgs
+              system
+              self'
+              inputs'
+              ;
+            buildDeps = allBuildDeps;
+          };
+
           unwrapLeaf = utils.unwrapValue perSystemArgs;
 
-          # Process __outputs.perSystem structure (e.g., { packages.foo = ...; devShells.default = ...; })
           processOutputs =
             attrs:
             lib.mapAttrs (
@@ -356,6 +422,7 @@ in
               if builtins.isAttrs outputs then lib.mapAttrs (_name: unwrapLeaf) outputs else unwrapLeaf outputs
             ) attrs;
 
+          # Second pass: evaluate functors with collected buildDeps
           evaluateFunctor =
             {
               functor,
@@ -367,7 +434,8 @@ in
               result = fn perSystemArgs;
               outputs = result.__outputs or { };
               perSystem = outputs.perSystem or { };
-              filtered = filterAttrs (k: _: k != "formatter") perSystem;
+              # perSystem keys are top-level ("buildDeps", "packages"), not dot-separated
+              filtered = filterAttrs (k: _: k != "formatter" && k != "buildDeps") perSystem;
               processed = processOutputs filtered;
             in
             processed;
