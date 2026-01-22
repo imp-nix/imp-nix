@@ -222,6 +222,26 @@ in
       };
     };
 
+    outputs = {
+      enable = mkEnableOption "output collection from __outputs declarations" // {
+        default = true;
+      };
+
+      sources = mkOption {
+        type = types.listOf types.path;
+        default = [ ];
+        description = ''
+          Directories to scan for __outputs declarations.
+
+          By default, scans both registry.src and src if they are set.
+          Explicitly setting this overrides the default.
+        '';
+        example = literalExpression ''
+          [ ./bundles ./nix/registry ]
+        '';
+      };
+    };
+
     hosts = {
       enable = mkEnableOption "automatic nixosConfigurations from __host declarations" // {
         default = false;

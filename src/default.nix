@@ -198,6 +198,62 @@ let
   */
   buildHosts = import ./build-hosts.nix;
 
+  /**
+    Scan directories for `__outputs` declarations and collect them.
+
+    Enables self-contained bundles to contribute to multiple flake output types.
+    perSystem outputs receive { pkgs, lib, system, ... } at evaluation time.
+
+    # Example
+
+    ```nix
+    imp.collectOutputs ./bundles
+    # => {
+    #   "perSystem.packages.lint" = [
+    #     { source = "/lint/default.nix"; value = <function>; strategy = null; }
+    #   ];
+    #   "perSystem.devShells.default" = [
+    #     { source = "/shell.nix"; value = <function>; strategy = "merge"; }
+    #   ];
+    # }
+    ```
+
+    # Arguments
+
+    pathOrPaths
+    : Directory/file path, or list of paths, to scan for __outputs declarations.
+  */
+  collectOutputs = import ./collect-outputs.nix;
+
+  /**
+    Build flake outputs from collected __outputs declarations.
+
+    Separates perSystem outputs from flake-level outputs and merges
+    contributions according to their strategies.
+
+    # Example
+
+    ```nix
+    buildOutputs {
+      lib = nixpkgs.lib;
+      collected = imp.collectOutputs ./bundles;
+    }
+    # => {
+    #   perSystem = { "packages.lint" = <function>; "devShells.default" = <merged-function>; };
+    #   flake = { "overlays.myOverlay" = <value>; };
+    # }
+    ```
+
+    # Arguments
+
+    lib
+    : nixpkgs lib for merge operations.
+
+    collected
+    : Output from collectOutputs.
+  */
+  buildOutputs = import ./build-outputs.nix;
+
   flakeFormat = import ./format-flake.nix;
   inherit (flakeFormat) formatInputs formatFlake;
 
@@ -305,6 +361,8 @@ let
               buildExportSinks
               collectHosts
               buildHosts
+              collectOutputs
+              buildOutputs
               formatInputs
               formatFlake
               collectAndFormatFlake

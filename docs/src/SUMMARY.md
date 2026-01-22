@@ -8,6 +8,7 @@
   - [Fragment Directories](./concepts/fragment-directories.md)
   - [The Registry](./concepts/registry.md)
   - [Export Sinks](./concepts/exports.md)
+  - [Output Declarations](./concepts/outputs.md)
   - [Host Declarations](./concepts/hosts.md)
 - [Guides](<>)
   - [Using with flake-parts](./guides/flake-parts.md)

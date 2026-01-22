@@ -40,7 +40,6 @@ let
 
   cfg = config.imp;
 
-  # Build the registry from configured sources
   registry =
     if cfg.registry.src == null then
       { }
@@ -50,21 +49,17 @@ let
       in
       lib.recursiveUpdate autoRegistry cfg.registry.modules;
 
-  # Bound imp instance with lib for passing to modules
   imp = impLib.withLib lib;
 
   buildTree =
     dir: args:
     if builtins.pathExists dir then impLib.treeWith lib (utils.applyIfCallable args) dir else { };
 
-  # Reserved directory/file names that have special handling
   isSpecialEntry = name: name == cfg.perSystemDir || name == "systems";
 
-  # Use nixpkgs lib when available (has nixosSystem, etc.), fallback to flake-parts lib
-  # This ensures lib.nixosSystem works in output files
+  # Prefer nixpkgs lib (has nixosSystem, etc.) over flake-parts lib
   nixpkgsLib = inputs.nixpkgs.lib or lib;
 
-  # Standard flake-level args (mirrors flake-parts module args)
   flakeArgs = {
     lib = nixpkgsLib;
     inherit
@@ -73,15 +68,12 @@ let
       config
       imp
       ;
-    # Allow access to top-level options for introspection
     inherit (config) systems;
     ${cfg.registry.name} = registry;
-    # Export sinks for direct access (avoids self.exports circular dependency)
     exports = exportSinks;
   }
   // cfg.args;
 
-  # Get flake-level outputs (everything except special entries)
   flakeTree =
     if cfg.src == null then
       { }
@@ -91,16 +83,13 @@ let
       in
       filterAttrs (name: _: !isSpecialEntry name) fullTree;
 
-  # Check for systems.nix in src directory
   systemsFile = cfg.src + "/systems.nix";
   hasSystemsFile = cfg.src != null && builtins.pathExists systemsFile;
   systemsFromFile =
     if hasSystemsFile then utils.applyIfCallable flakeArgs (import systemsFile) else null;
 
-  # Export sinks configuration (defined early for inclusion in flakeArgs)
   exportsCfg = cfg.exports;
 
-  # Determine sources for export scanning
   exportSources =
     if exportsCfg.sources != [ ] then
       exportsCfg.sources
@@ -110,7 +99,6 @@ let
         cfg.src
       ];
 
-  # Build export sinks if enabled
   exportSinks =
     if exportsCfg.enable && exportSources != [ ] then
       let
@@ -125,10 +113,8 @@ let
     else
       { };
 
-  # Flake file generation
   flakeFileCfg = cfg.flakeFile;
 
-  # Collect inputs from both outputs dir and registry dir
   inputSources = builtins.filter (p: p != null) [
     cfg.src
     cfg.registry.src
@@ -151,10 +137,37 @@ let
     else
       "";
 
-  # Host generation configuration
+  outputsCfg = cfg.outputs;
+
+  outputSources =
+    if outputsCfg.sources != [ ] then
+      outputsCfg.sources
+    else
+      builtins.filter (p: p != null) [
+        cfg.registry.src
+        cfg.src
+      ];
+
+  collectedOutputs =
+    if outputsCfg.enable && outputSources != [ ] then
+      impLib.collectOutputs outputSources
+    else
+      { };
+
+  builtOutputs =
+    if outputsCfg.enable && collectedOutputs != { } then
+      impLib.buildOutputs {
+        inherit lib;
+        collected = collectedOutputs;
+      }
+    else
+      {
+        perSystem = { };
+        flake = { };
+      };
+
   hostsCfg = cfg.hosts;
 
-  # Determine sources for host scanning
   hostSources =
     if hostsCfg.sources != [ ] then
       hostsCfg.sources
@@ -163,7 +176,6 @@ let
     else
       [ ];
 
-  # Collect and build hosts if enabled
   collectedHosts =
     if hostsCfg.enable && hostSources != [ ] then impLib.collectHosts hostSources else { };
 
@@ -199,16 +211,12 @@ in
   );
 
   config = lib.mkMerge [
-    # Override flakeFile.path default with actual self path
-    {
-      imp.flakeFile.path = lib.mkDefault (self + "/flake.nix");
-    }
-    # Systems from file (if present)
+    { imp.flakeFile.path = lib.mkDefault (self + "/flake.nix"); }
+
     (lib.mkIf (systemsFromFile != null) {
       systems = lib.mkDefault systemsFromFile;
     })
 
-    # Main imp config
     (lib.mkIf (cfg.src != null) {
       flake = flakeTree;
 
@@ -241,37 +249,145 @@ in
 
           rawOutputs = buildTree perSystemPath perSystemArgs;
 
-          /**
-            Auto-detect formatter.d/ and build treefmt wrapper.
+          # Formatter excluded: buildTree returns raw attrset, combined section builds wrapper
+          filteredOutputs = filterAttrs (k: _: k != "formatter") rawOutputs;
+        in
+        filteredOutputs;
+    })
 
-            If formatter.d/ exists without a formatter.nix, fragments are collected
-            and wrapped with treefmt-nix. treefmt-nix is sourced from imp's inputs
-            (inputs.imp.inputs.treefmt-nix) or the consumer's direct inputs.
-          */
-          formatterDPath = perSystemPath + "/formatter.d";
-          formatterNixPath = perSystemPath + "/formatter.nix";
-          hasFormatterD = builtins.pathExists formatterDPath;
-          hasFormatterNix = builtins.pathExists formatterNixPath;
+    # __outputs integration (formatter excluded - combined section handles it)
+    (lib.mkIf (outputsCfg.enable && builtOutputs.perSystem != { }) {
+      perSystem =
+        {
+          pkgs,
+          system,
+          self',
+          inputs',
+          config,
+          ...
+        }:
+        let
+          perSystemArgs = {
+            inherit
+              lib
+              pkgs
+              system
+              self
+              self'
+              inputs
+              inputs'
+              imp
+              ;
+            ${cfg.registry.name} = registry;
+            exports = exportSinks;
+          }
+          // cfg.args
+          // config.imp.args;
 
-          formatterOutput =
-            if hasFormatterD && !hasFormatterNix then
+          nonFormatterOutputs = filterAttrs (k: _: k != "formatter") builtOutputs.perSystem;
+
+          evaluatedOutputs = lib.mapAttrs (
+            outputPath: value:
+            let
+              parts = lib.splitString "." outputPath;
+              evaluated = if builtins.isFunction value then value perSystemArgs else value;
+            in
+            lib.setAttrByPath parts evaluated
+          ) nonFormatterOutputs;
+
+          merged = lib.foldl' lib.recursiveUpdate { } (lib.attrValues evaluatedOutputs);
+        in
+        merged;
+    })
+
+    (lib.mkIf (outputsCfg.enable && builtOutputs.flake != { }) {
+      flake =
+        let
+          evaluatedOutputs = lib.mapAttrs (
+            outputPath: value:
+            let
+              parts = lib.splitString "." outputPath;
+              evaluated = if builtins.isFunction value then value flakeArgs else value;
+            in
+            lib.setAttrByPath parts evaluated
+          ) builtOutputs.flake;
+        in
+        lib.foldl' lib.recursiveUpdate { } (lib.attrValues evaluatedOutputs);
+    })
+
+    # Combined formatter from formatter.d/ and __outputs.perSystem.formatter
+    {
+      perSystem =
+        {
+          pkgs,
+          system,
+          self',
+          inputs',
+          config,
+          ...
+        }:
+        let
+          perSystemPath = if cfg.src != null then cfg.src + "/${cfg.perSystemDir}" else null;
+          formatterDPath = if perSystemPath != null then perSystemPath + "/formatter.d" else null;
+          formatterNixPath = if perSystemPath != null then perSystemPath + "/formatter.nix" else null;
+          hasFormatterD = formatterDPath != null && builtins.pathExists formatterDPath;
+          hasFormatterNix = formatterNixPath != null && builtins.pathExists formatterNixPath;
+          hasOutputsFormatter = outputsCfg.enable && builtOutputs.perSystem ? "formatter";
+
+          # Skip if formatter.nix exists (user handles treefmt directly)
+          shouldBuildFormatter = (hasFormatterD || hasOutputsFormatter) && !hasFormatterNix;
+
+          perSystemArgs = {
+            inherit
+              lib
+              pkgs
+              system
+              self
+              self'
+              inputs
+              inputs'
+              imp
+              ;
+            ${cfg.registry.name} = registry;
+            exports = exportSinks;
+          }
+          // cfg.args
+          // config.imp.args;
+
+          treefmt-nix =
+            inputs.imp.inputs.treefmt-nix or inputs.treefmt-nix
+              or (throw "formatter.d/__outputs.formatter requires treefmt-nix input (available via inputs.imp.inputs.treefmt-nix)");
+
+          formatterDFragments =
+            if hasFormatterD then
+              (imp.fragmentsWith perSystemArgs formatterDPath).asAttrs
+            else
+              { };
+
+          outputsFormatterFragments =
+            if hasOutputsFormatter then
               let
-                treefmt-nix =
-                  inputs.imp.inputs.treefmt-nix or inputs.treefmt-nix
-                    or (throw "formatter.d requires treefmt-nix input (available via inputs.imp.inputs.treefmt-nix)");
-                fragments = imp.fragmentsWith perSystemArgs formatterDPath;
-                merged = lib.recursiveUpdate { projectRootFile = "flake.nix"; } fragments.asAttrs;
+                value = builtOutputs.perSystem."formatter";
+                evaluated = if builtins.isFunction value then value perSystemArgs else value;
               in
-              {
-                formatter = (treefmt-nix.lib.evalModule pkgs merged).config.build.wrapper;
-              }
+              evaluated
+            else
+              { };
+
+          merged = lib.foldl' lib.recursiveUpdate { projectRootFile = "flake.nix"; } [
+            formatterDFragments
+            outputsFormatterFragments
+          ];
+
+          formatterResult =
+            if shouldBuildFormatter then
+              { formatter = (treefmt-nix.lib.evalModule pkgs merged).config.build.wrapper; }
             else
               { };
         in
-        rawOutputs // formatterOutput;
-    })
+        formatterResult;
+    }
 
-    # Flake file generation outputs
     (lib.mkIf flakeFileCfg.enable {
       perSystem =
         { pkgs, ... }:
@@ -331,7 +447,6 @@ in
         };
     })
 
-    # Export sinks output
     (lib.mkIf (exportsCfg.enable && exportSources != [ ]) {
       /*
         Expose export sinks as flake outputs.
@@ -360,7 +475,6 @@ in
       flake.exports = exportSinks;
     })
 
-    # Registry output
     (lib.mkIf (cfg.registry.src != null) {
       /*
         Expose the registry attrset as a flake output.
@@ -375,7 +489,6 @@ in
       flake.registry = registry;
     })
 
-    # Auto-generated hosts from __host declarations
     (lib.mkIf (hostsCfg.enable && collectedHosts != { }) {
       /*
         Generate nixosConfigurations from __host declarations.

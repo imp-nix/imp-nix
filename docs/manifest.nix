@@ -51,6 +51,13 @@
         ];
       }
       {
+        name = "Output Collection";
+        files = [
+          "collect-outputs.nix"
+          "build-outputs.nix"
+        ];
+      }
+      {
         name = "Host Configuration";
         files = [
           "collect-hosts.nix"
@@ -109,6 +116,14 @@
           "collectExports"
           "buildExportSinks"
           "exportSinks"
+        ];
+      }
+      {
+        heading = "Output Collection";
+        file = "default.nix";
+        exports = [
+          "collectOutputs"
+          "buildOutputs"
         ];
       }
       {
