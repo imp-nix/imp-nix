@@ -521,7 +521,7 @@ collectedInputs
 : Collected inputs from \_\_inputs declarations (optional).
 
 outputsFile
-: Path to outputs file (default: "./outputs.nix").
+: Path to outputs file (default: "./nix/flake").
 
 header
 : Header comment for generated file (optional).
@@ -833,7 +833,7 @@ description
 : Flake description string (optional).
 
 outputsFile
-: Path to outputs file (default: "./outputs.nix").
+: Path to outputs file (default: "./nix/flake").
 
 header
 : Header comment for generated file (optional).

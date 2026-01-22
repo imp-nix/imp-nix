@@ -69,7 +69,7 @@ Header comment for generated flake.nix.
 
 **Type:** `string`
 
-**Default:** `"./outputs.nix"`
+**Default:** `"./nix/flake"`
 
 Path to outputs file (relative to flake.nix).
 

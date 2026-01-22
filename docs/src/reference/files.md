@@ -631,7 +631,7 @@ formatFlake {
   description = "My flake";
   coreInputs = { nixpkgs.url = "..."; };
   collectedInputs = { treefmt-nix.url = "..."; };
-  outputsFile = "./outputs.nix";
+  outputsFile = "./nix/flake";
 }
 # => full flake.nix content as string
 ```

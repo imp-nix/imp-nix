@@ -196,7 +196,7 @@ in
 
       outputsFile = mkOption {
         type = types.str;
-        default = "./outputs.nix";
+        default = "./nix/flake";
         description = "Path to outputs file (relative to flake.nix).";
       };
 
