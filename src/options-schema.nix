@@ -242,6 +242,20 @@ in
       };
     };
 
+    impShell = {
+      enable = mkEnableOption "auto-generated default devShell" // {
+        default = false;
+        description = ''
+          Automatically generate a default devShell that composes all other devShells.
+
+          When enabled and no explicit devShells.default is defined, imp creates one
+          that uses inputsFrom to include all other devShells. This eliminates
+          boilerplate for the common case where you want all devShell contributions
+          merged together.
+        '';
+      };
+    };
+
     hosts = {
       enable = mkEnableOption "automatic nixosConfigurations from __host declarations" // {
         default = false;

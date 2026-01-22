@@ -90,22 +90,6 @@ Subdirectory name for per-system outputs.
 Files in this directory receive standard flake-parts perSystem args:
 { pkgs, lib, system, self, self', inputs, inputs', ... }
 
-## `imp.registry.migratePaths` {#opt-imp-registry-migratePaths}
-
-**Type:** `list of absolute path`
-
-**Default:** `[ ]`
-
-Directories to scan for registry references when detecting renames.
-If empty, defaults to [ imp.src ] when registry.src is set.
-
-**Example:**
-
-```nix
-[ ./nix/outputs ./nix/flake ]
-
-```
-
 ## `imp.registry.modules` {#opt-imp-registry-modules}
 
 **Type:** `attribute set of unspecified value`
@@ -195,27 +179,9 @@ systems.nix -> systems (optional, overrides top-level)
 
 Whether to enable automatic nixosConfigurations from `__host` declarations.
 
-When enabled, imp scans `hosts.sources` for files containing `__host` attrsets and generates `flake.nixosConfigurations` entries automatically.
+When enabled, imp scans `registry.src` for files containing `__host` attrsets and generates `flake.nixosConfigurations` entries automatically.
 
 **Example:** `true`
-
-## `imp.hosts.sources` {#opt-imp-hosts-sources}
-
-**Type:** `list of absolute path`
-
-**Default:** `[ ]`
-
-Directories to scan for `__host` declarations.
-
-Each `.nix` file with a `__host` attrset becomes a nixosConfiguration. The host name derives from the directory name (for `default.nix`) or filename (for other files). Files in directories starting with `_` are excluded.
-
-By default, scans `registry.src` if set.
-
-**Example:**
-
-```nix
-[ ./nix/registry/hosts ]
-```
 
 ## `imp.hosts.defaults` {#opt-imp-hosts-defaults}
 
@@ -234,4 +200,37 @@ Host-specific values in `__host` override these defaults. Useful for setting `sy
   system = "x86_64-linux";
   stateVersion = "24.11";
 }
+```
+
+## `imp.impShell.enable` {#opt-imp-impShell-enable}
+
+**Type:** `boolean`
+
+**Default:** `false`
+
+Whether to enable auto-generated default devShell.
+
+When enabled and no explicit `devShells.default` is defined, imp creates one that uses `inputsFrom` to include all other devShells. This eliminates boilerplate for the common case where you want all devShell contributions merged together.
+
+**Example:** `true`
+
+```nix
+# In your flake config:
+imp.impShell.enable = true;
+
+# Bundles can contribute devShells:
+# nix/bundles/rust/default.nix
+{
+  __outputs.perSystem.devShells.rust = pkgs.mkShell { ... };
+}
+
+# nix/bundles/bevy/default.nix
+{
+  __outputs.perSystem.devShells.bevy = pkgs.mkShell { ... };
+}
+
+# imp auto-generates:
+# devShells.default = mkShell {
+#   inputsFrom = [ self'.devShells.rust self'.devShells.bevy ... ];
+# };
 ```

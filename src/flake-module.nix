@@ -487,6 +487,19 @@ in
         formatterResult;
     }
 
+    # Auto-generated default devShell from impShell.enable
+    (lib.mkIf cfg.impShell.enable {
+      perSystem =
+        { pkgs, self', ... }:
+        {
+          devShells.default = lib.mkDefault (
+            pkgs.mkShell {
+              inputsFrom = builtins.attrValues (builtins.removeAttrs self'.devShells [ "default" ]);
+            }
+          );
+        };
+    })
+
     (lib.mkIf flakeFileCfg.enable {
       perSystem =
         { pkgs, ... }:
