@@ -242,6 +242,29 @@ in
       };
     };
 
+    bundles = {
+      src = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = ''
+          Directory containing self-contained bundles with __outputs declarations.
+
+          Bundles are portable directories that contribute to multiple flake outputs.
+          Each bundle's default.nix can declare __outputs.perSystem.* and __outputs.*
+          to add packages, devShell tools, formatter config, etc.
+
+          This directory is automatically included in outputs.sources.
+        '';
+        example = literalExpression ''
+          ./nix/bundles
+          # Structure:
+          #   bundles/
+          #     rust/default.nix       -> __outputs.perSystem.packages.default, formatter
+          #     cargo-rail/default.nix -> __outputs.perSystem.packages.cargo-rail
+        '';
+      };
+    };
+
     hosts = {
       enable = mkEnableOption "automatic nixosConfigurations from __host declarations" // {
         default = false;

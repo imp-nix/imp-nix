@@ -118,6 +118,7 @@ let
   inputSources = builtins.filter (p: p != null) [
     cfg.src
     cfg.registry.src
+    cfg.bundles.src
   ];
   collectedInputs =
     if flakeFileCfg.enable && inputSources != [ ] then impLib.collectInputs inputSources else { };
@@ -146,6 +147,7 @@ let
       builtins.filter (p: p != null) [
         cfg.registry.src
         cfg.src
+        cfg.bundles.src
       ];
 
   collectedOutputs =
