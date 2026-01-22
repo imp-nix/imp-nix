@@ -1,0 +1,1 @@
+{ name = "workstation"; type = "host"; }

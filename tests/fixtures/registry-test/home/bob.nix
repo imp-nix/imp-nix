@@ -1,0 +1,1 @@
+{ name = "bob"; type = "home"; }
