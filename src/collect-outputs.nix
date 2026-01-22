@@ -68,28 +68,28 @@ let
     else
       { };
 
-  tryFunctorOutputs =
-    value:
+  /**
+    For files that are functions or have __functor, return a special marker.
+    The function will be evaluated later at build time with real args.
+  */
+  tryDeferredOutputs =
+    value: path:
     if isAttrs value && value ? __functor then
-      let
-        innerFn = builtins.tryEval (value.__functor value);
-      in
-      if innerFn.success && isFunction innerFn.value then
-        let
-          innerArgs = builtins.tryEval (builtins.functionArgs innerFn.value);
-        in
-        if innerArgs.success then
-          let
-            stubArgs = builtins.mapAttrs (name: hasDefault: if hasDefault then null else { }) innerArgs.value;
-            result = builtins.tryEval (innerFn.value stubArgs);
-          in
-          if result.success && isAttrs result.value then safeExtractOutputs result.value else { }
-        else
-          { }
-      else if innerFn.success && isAttrs innerFn.value then
-        safeExtractOutputs innerFn.value
-      else
-        { }
+      {
+        __deferredFunctor = {
+          functor = value;
+          isFunctor = true;
+          source = toString path;
+        };
+      }
+    else if isFunction value then
+      {
+        __deferredFunctor = {
+          functor = value;
+          isFunctor = false;
+          source = toString path;
+        };
+      }
     else
       { };
 
@@ -103,9 +103,12 @@ let
     else if isAttrs imported.value then
       let
         staticOutputs = safeExtractOutputs imported.value;
-        functorOutputs = if staticOutputs == { } then tryFunctorOutputs imported.value else { };
+        deferredOutputs = if staticOutputs == { } then tryDeferredOutputs imported.value path else { };
       in
-      if staticOutputs != { } then staticOutputs else functorOutputs
+      if staticOutputs != { } then staticOutputs else deferredOutputs
+    else if isFunction imported.value then
+      # Plain function - defer for later evaluation
+      tryDeferredOutputs imported.value path
     else
       { };
 
@@ -183,7 +186,13 @@ let
     let
       outputs = importAndExtract path;
     in
-    if outputs == { } then acc else mergeOutputs acc (processFileOutputs path outputs);
+    if outputs == { } then
+      acc
+    else if outputs ? __deferredFunctor then
+      # Store deferred functors separately for later evaluation
+      acc // { __deferredFunctors = (acc.__deferredFunctors or [ ]) ++ [ outputs.__deferredFunctor ]; }
+    else
+      mergeOutputs acc (processFileOutputs path outputs);
 
   processDir =
     acc: path:

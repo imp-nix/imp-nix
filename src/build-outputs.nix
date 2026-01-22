@@ -41,10 +41,16 @@ let
   setAttrByPath = lib.setAttrByPath;
   recursiveUpdate = lib.recursiveUpdate;
 
+  # Extract deferred functors (evaluated later with real args)
+  deferredFunctors = collected.__deferredFunctors or [ ];
+
+  # Remove __deferredFunctors from collected for regular processing
+  staticCollected = builtins.removeAttrs collected [ "__deferredFunctors" ];
+
   # Separate perSystem outputs from flake-level outputs
   partitionOutputs =
     let
-      keys = builtins.attrNames collected;
+      keys = builtins.attrNames staticCollected;
       perSystemKeys = builtins.filter (k: hasPrefix "perSystem." k) keys;
       flakeKeys = builtins.filter (k: !(hasPrefix "perSystem." k)) keys;
     in
@@ -52,13 +58,13 @@ let
       perSystem = builtins.listToAttrs (
         map (k: {
           name = removePrefix "perSystem." k;
-          value = collected.${k};
+          value = staticCollected.${k};
         }) perSystemKeys
       );
       flake = builtins.listToAttrs (
         map (k: {
           name = k;
-          value = collected.${k};
+          value = staticCollected.${k};
         }) flakeKeys
       );
     };
@@ -132,4 +138,5 @@ in
 {
   perSystem = buildSection partitioned.perSystem;
   flake = buildSection partitioned.flake;
+  inherit deferredFunctors;
 }

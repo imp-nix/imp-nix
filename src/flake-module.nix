@@ -140,12 +140,12 @@ let
 
   outputsCfg = cfg.outputs;
 
+  # Note: registry.src is NOT included - it's for named modules, not output bundles
   outputSources =
     if outputsCfg.sources != [ ] then
       outputsCfg.sources
     else
       builtins.filter (p: p != null) [
-        cfg.registry.src
         cfg.src
         cfg.bundles.src
       ];
@@ -166,6 +166,7 @@ let
       {
         perSystem = { };
         flake = { };
+        deferredFunctors = [ ];
       };
 
   hostsCfg = cfg.hosts;
@@ -288,6 +289,7 @@ in
 
           nonFormatterOutputs = filterAttrs (k: _: k != "formatter") builtOutputs.perSystem;
 
+          # Evaluate static outputs
           evaluatedOutputs = lib.mapAttrs (
             outputPath: value:
             let
@@ -298,6 +300,74 @@ in
           ) nonFormatterOutputs;
 
           merged = lib.foldl' lib.recursiveUpdate { } (lib.attrValues evaluatedOutputs);
+        in
+        merged;
+    })
+
+    # Deferred functor outputs (bundles with __functor or plain functions)
+    # Note: Does not include config.imp.args to avoid infinite recursion
+    (lib.mkIf (outputsCfg.enable && builtOutputs.deferredFunctors != [ ]) {
+      perSystem =
+        {
+          pkgs,
+          system,
+          self',
+          inputs',
+          ...
+        }:
+        let
+          perSystemArgs = {
+            inherit
+              lib
+              pkgs
+              system
+              self
+              self'
+              inputs
+              inputs'
+              imp
+              ;
+            ${cfg.registry.name} = registry;
+            exports = exportSinks;
+          }
+          // cfg.args;
+
+          # Unwrap { value, strategy } output record or evaluate function
+          unwrapLeaf =
+            v:
+            if builtins.isAttrs v && v ? value then
+              let val = v.value; in
+              if builtins.isFunction val then val perSystemArgs else val
+            else if builtins.isFunction v then
+              v perSystemArgs
+            else
+              v;
+
+          # Process __outputs.perSystem structure (e.g., { packages.foo = ...; devShells.default = ...; })
+          processOutputs =
+            attrs:
+            lib.mapAttrs (
+              _outputType: outputs:
+              if builtins.isAttrs outputs then
+                lib.mapAttrs (_name: unwrapLeaf) outputs
+              else
+                unwrapLeaf outputs
+            ) attrs;
+
+          evaluateFunctor =
+            { functor, isFunctor, source }:
+            let
+              fn = if isFunctor then functor.__functor functor else functor;
+              result = fn perSystemArgs;
+              outputs = result.__outputs or { };
+              perSystem = outputs.perSystem or { };
+              filtered = filterAttrs (k: _: k != "formatter") perSystem;
+              processed = processOutputs filtered;
+            in
+            processed;
+
+          deferredResults = map evaluateFunctor builtOutputs.deferredFunctors;
+          merged = lib.foldl' lib.recursiveUpdate { } deferredResults;
         in
         merged;
     })
@@ -325,7 +395,6 @@ in
           system,
           self',
           inputs',
-          config,
           ...
         }:
         let
@@ -335,9 +404,10 @@ in
           hasFormatterD = formatterDPath != null && builtins.pathExists formatterDPath;
           hasFormatterNix = formatterNixPath != null && builtins.pathExists formatterNixPath;
           hasOutputsFormatter = outputsCfg.enable && builtOutputs.perSystem ? "formatter";
+          hasDeferredFunctors = outputsCfg.enable && builtOutputs.deferredFunctors != [ ];
 
           # Skip if formatter.nix exists (user handles treefmt directly)
-          shouldBuildFormatter = (hasFormatterD || hasOutputsFormatter) && !hasFormatterNix;
+          shouldBuildFormatter = (hasFormatterD || hasOutputsFormatter || hasDeferredFunctors) && !hasFormatterNix;
 
           perSystemArgs = {
             inherit
@@ -353,8 +423,7 @@ in
             ${cfg.registry.name} = registry;
             exports = exportSinks;
           }
-          // cfg.args
-          // config.imp.args;
+          // cfg.args;
 
           treefmt-nix =
             inputs.imp.inputs.treefmt-nix or inputs.treefmt-nix
@@ -376,9 +445,34 @@ in
             else
               { };
 
+          # Extract formatter config from deferred functors
+          deferredFormatterFragments =
+            if hasDeferredFunctors then
+              let
+                extractFormatter =
+                  { functor, isFunctor, source }:
+                  let
+                    fn = if isFunctor then functor.__functor functor else functor;
+                    result = fn perSystemArgs;
+                    outputs = result.__outputs or { };
+                    formatter = outputs.perSystem.formatter or null;
+                  in
+                  if formatter == null then
+                    { }
+                  else if builtins.isAttrs formatter && formatter ? value then
+                    formatter.value
+                  else
+                    formatter;
+                fragments = map extractFormatter builtOutputs.deferredFunctors;
+              in
+              lib.foldl' lib.recursiveUpdate { } fragments
+            else
+              { };
+
           merged = lib.foldl' lib.recursiveUpdate { projectRootFile = "flake.nix"; } [
             formatterDFragments
             outputsFormatterFragments
+            deferredFormatterFragments
           ];
 
           formatterResult =
