@@ -34,32 +34,8 @@
   : Directory/file path, or list of paths, to scan for __inputs declarations.
 */
 let
-  # Check if path should be excluded (starts with `_` in basename)
-  isExcluded =
-    path:
-    let
-      str = toString path;
-      parts = builtins.filter (x: x != "") (builtins.split "/" str);
-      basename = builtins.elemAt parts (builtins.length parts - 1);
-    in
-    builtins.substring 0 1 basename == "_";
-
-  isAttrs = builtins.isAttrs;
-
-  # Safely extract `__inputs`, catching evaluation errors with `tryEval`
-  safeExtractInputs =
-    value:
-    let
-      hasIt = builtins.tryEval (isAttrs value && value ? __inputs && isAttrs value.__inputs);
-    in
-    if hasIt.success && hasIt.value then
-      let
-        inputs = value.__inputs;
-        forced = builtins.tryEval (builtins.deepSeq inputs inputs);
-      in
-      if forced.success then forced.value else { }
-    else
-      { };
+  scanner = import ./scanner.nix;
+  utils = import ./lib.nix;
 
   # Import a `.nix` file and extract `__inputs` from attrsets only
   importAndExtract =
@@ -68,12 +44,12 @@ let
       imported = builtins.tryEval (import path);
     in
     if !imported.success then
-      { }
-    else if isAttrs imported.value then
-      safeExtractInputs imported.value
+      null
+    else if builtins.isAttrs imported.value then
+      utils.extractInputs imported.value
     else
       # Functions are not called - use `__functor` pattern for functions with `__inputs`
-      { };
+      null;
 
   # Compare two input definitions for equality
   inputsEqual =
@@ -121,69 +97,19 @@ let
         }
     ) existing newNames;
 
-  # Process a single `.nix` file
-  processFile =
-    acc: path:
-    let
-      inputs = importAndExtract path;
-    in
-    if inputs == { } then acc else mergeInputs path acc inputs;
-
-  # Process a directory recursively
-  processDir =
-    acc: path:
-    let
-      entries = builtins.readDir path;
-      names = builtins.attrNames entries;
-
-      process =
-        acc: name:
-        let
-          entryPath = path + "/${name}";
-          entryType = entries.${name};
-          resolvedType = if entryType == "symlink" then builtins.readFileType entryPath else entryType;
-        in
-        if isExcluded entryPath then
-          acc
-        else if resolvedType == "regular" && builtins.match ".*\\.nix" name != null then
-          processFile acc entryPath
-        else if resolvedType == "directory" then
-          let
-            defaultPath = entryPath + "/default.nix";
-            hasDefault = builtins.pathExists defaultPath;
-          in
-          if hasDefault then processFile acc defaultPath else processDir acc entryPath
-        else
-          acc;
-    in
-    builtins.foldl' process acc names;
-
-  # Process a path (file or directory)
-  processPath =
-    acc: path:
-    let
-      rawPathType = builtins.readFileType path;
-      pathType = if rawPathType == "symlink" then builtins.readFileType path else rawPathType;
-    in
-    if pathType == "regular" then
-      processFile acc path
-    else if pathType == "directory" then
-      processDir acc path
-    else
-      acc;
-
-  # Main: accepts path or list of paths
   collectInputs =
     pathOrPaths:
     let
-      paths = if builtins.isList pathOrPaths then pathOrPaths else [ pathOrPaths ];
-
-      initial = {
-        inputs = { };
-        conflicts = [ ];
-      };
-
-      result = builtins.foldl' processPath initial paths;
+      result = scanner.mkScanner {
+        extract = importAndExtract;
+        processResult =
+          acc: path: inputs:
+          mergeInputs path acc inputs;
+        initial = {
+          inputs = { };
+          conflicts = [ ];
+        };
+      } pathOrPaths;
 
       formatConflict =
         c:

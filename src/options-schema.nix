@@ -14,14 +14,17 @@ let
     types
     literalExpression
     ;
+
+  # Type that accepts a single path or a list of paths
+  pathOrPaths = types.either types.path (types.listOf types.path);
 in
 {
   options.imp = {
     src = mkOption {
-      type = types.nullOr types.path;
+      type = types.nullOr pathOrPaths;
       default = null;
       description = ''
-        Directory containing flake outputs to import.
+        Directory (or list of directories) containing flake outputs to import.
 
         Structure maps to flake-parts semantics:
           outputs/
@@ -31,6 +34,11 @@ in
             nixosConfigurations/ -> flake.nixosConfigurations
             overlays.nix         -> flake.overlays
             systems.nix          -> systems (optional, overrides top-level)
+
+        When multiple paths are provided, they are scanned in order.
+      '';
+      example = literalExpression ''
+        [ ./outputs ./extra-outputs ]
       '';
     };
 
@@ -115,20 +123,6 @@ in
     exports = {
       enable = mkEnableOption "export sinks from __exports declarations" // {
         default = true;
-      };
-
-      sources = mkOption {
-        type = types.listOf types.path;
-        default = [ ];
-        description = ''
-          List of directories to scan for __exports declarations.
-
-          By default, scans both registry.src and src if they are set.
-          Explicitly setting this overrides the default.
-        '';
-        example = literalExpression ''
-          [ ./nix/registry ./nix/features ]
-        '';
       };
 
       sinkDefaults = mkOption {
@@ -226,41 +220,24 @@ in
       enable = mkEnableOption "output collection from __outputs declarations" // {
         default = true;
       };
-
-      sources = mkOption {
-        type = types.listOf types.path;
-        default = [ ];
-        description = ''
-          Directories to scan for __outputs declarations.
-
-          By default, scans both registry.src and src if they are set.
-          Explicitly setting this overrides the default.
-        '';
-        example = literalExpression ''
-          [ ./bundles ./nix/registry ]
-        '';
-      };
     };
 
     bundles = {
       src = mkOption {
-        type = types.nullOr types.path;
+        type = types.nullOr pathOrPaths;
         default = null;
         description = ''
-          Directory containing self-contained bundles with __outputs declarations.
+          Directory (or list of directories) containing self-contained bundles
+          with __outputs declarations.
 
           Bundles are portable directories that contribute to multiple flake outputs.
           Each bundle's default.nix can declare __outputs.perSystem.* and __outputs.*
           to add packages, devShell tools, formatter config, etc.
-
-          This directory is automatically included in outputs.sources.
         '';
         example = literalExpression ''
           ./nix/bundles
-          # Structure:
-          #   bundles/
-          #     rust/default.nix       -> __outputs.perSystem.packages.default, formatter
-          #     cargo-rail/default.nix -> __outputs.perSystem.packages.cargo-rail
+          # Or multiple:
+          # [ ./nix/bundles ./extra-bundles ]
         '';
       };
     };
@@ -271,30 +248,13 @@ in
         description = ''
           Generate nixosConfigurations by scanning for __host declarations.
 
-          When enabled, imp walks hosts.sources looking for .nix files that
+          When enabled, imp walks registry.src looking for .nix files that
           contain a __host attrset. Each such file becomes a nixosConfiguration
           entry, named after the directory (for default.nix) or filename.
 
           The __host schema declares system, stateVersion, base config trees,
           export sinks, extra modules, and optional Home Manager integration.
           See the Host Declarations concept documentation for the full schema.
-        '';
-      };
-
-      sources = mkOption {
-        type = types.listOf types.path;
-        default = [ ];
-        description = ''
-          Directories to scan for __host declarations.
-
-          Each .nix file containing a __host attrset produces a nixosConfiguration.
-          Host names derive from directory names (for default.nix) or filenames
-          (minus .nix extension). Files in directories starting with _ are skipped.
-
-          Defaults to [ registry.src ] when registry.src is set.
-        '';
-        example = literalExpression ''
-          [ ./nix/registry/hosts ]
         '';
       };
 

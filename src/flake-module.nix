@@ -51,6 +51,58 @@ let
 
   imp = impLib.withLib lib;
 
+  # Normalize a value that can be null, path, or list of paths to a list
+  toPathList =
+    v:
+    if v == null then
+      [ ]
+    else if builtins.isList v then
+      v
+    else
+      [ v ];
+
+  # Get first path from src (for single-path operations like systems.nix)
+  firstSrc =
+    if cfg.src == null then
+      null
+    else if builtins.isList cfg.src then
+      builtins.head cfg.src
+    else
+      cfg.src;
+
+  /**
+    Build perSystem argument set.
+
+    includePerSystemConfig: Whether to include config.imp.args.
+      Set to false for deferred functor evaluation to prevent infinite recursion.
+      When a functor contributes to perSystem options, and config.imp.args
+      references those options, including it creates a cycle.
+  */
+  mkPerSystemArgs =
+    {
+      pkgs,
+      system,
+      self',
+      inputs',
+      perSystemConfig ? null,
+    }:
+    {
+      inherit
+        lib
+        pkgs
+        system
+        self
+        self'
+        inputs
+        inputs'
+        imp
+        ;
+      ${cfg.registry.name} = registry;
+      exports = exportSinks;
+    }
+    // cfg.args
+    // (if perSystemConfig != null then perSystemConfig.imp.args else { });
+
   buildTree =
     dir: args:
     if builtins.pathExists dir then impLib.treeWith lib (utils.applyIfCallable args) dir else { };
@@ -74,30 +126,28 @@ let
   }
   // cfg.args;
 
+  srcPaths = toPathList cfg.src;
+
   flakeTree =
-    if cfg.src == null then
+    if srcPaths == [ ] then
       { }
     else
       let
-        fullTree = buildTree cfg.src flakeArgs;
+        trees = map (src: buildTree src flakeArgs) srcPaths;
+        fullTree = lib.foldl' lib.recursiveUpdate { } trees;
       in
       filterAttrs (name: _: !isSpecialEntry name) fullTree;
 
-  systemsFile = cfg.src + "/systems.nix";
-  hasSystemsFile = cfg.src != null && builtins.pathExists systemsFile;
+  # systems.nix only from first src path
+  systemsFile = if firstSrc != null then firstSrc + "/systems.nix" else null;
+  hasSystemsFile = systemsFile != null && builtins.pathExists systemsFile;
   systemsFromFile =
     if hasSystemsFile then utils.applyIfCallable flakeArgs (import systemsFile) else null;
 
   exportsCfg = cfg.exports;
 
-  exportSources =
-    if exportsCfg.sources != [ ] then
-      exportsCfg.sources
-    else
-      builtins.filter (p: p != null) [
-        cfg.registry.src
-        cfg.src
-      ];
+  # Exports scan both registry.src and src paths
+  exportSources = toPathList cfg.registry.src ++ srcPaths;
 
   exportSinks =
     if exportsCfg.enable && exportSources != [ ] then
@@ -115,11 +165,10 @@ let
 
   flakeFileCfg = cfg.flakeFile;
 
-  inputSources = builtins.filter (p: p != null) [
-    cfg.src
-    cfg.registry.src
-    cfg.bundles.src
-  ];
+  bundlePaths = toPathList cfg.bundles.src;
+
+  # Inputs scan all source paths
+  inputSources = srcPaths ++ toPathList cfg.registry.src ++ bundlePaths;
   collectedInputs =
     if flakeFileCfg.enable && inputSources != [ ] then impLib.collectInputs inputSources else { };
 
@@ -140,21 +189,11 @@ let
 
   outputsCfg = cfg.outputs;
 
-  # Note: registry.src is NOT included - it's for named modules, not output bundles
-  outputSources =
-    if outputsCfg.sources != [ ] then
-      outputsCfg.sources
-    else
-      builtins.filter (p: p != null) [
-        cfg.src
-        cfg.bundles.src
-      ];
+  # Outputs scan src and bundles (registry.src is for named modules, not bundles)
+  outputSources = srcPaths ++ bundlePaths;
 
   collectedOutputs =
-    if outputsCfg.enable && outputSources != [ ] then
-      impLib.collectOutputs outputSources
-    else
-      { };
+    if outputsCfg.enable && outputSources != [ ] then impLib.collectOutputs outputSources else { };
 
   builtOutputs =
     if outputsCfg.enable && collectedOutputs != { } then
@@ -171,13 +210,8 @@ let
 
   hostsCfg = cfg.hosts;
 
-  hostSources =
-    if hostsCfg.sources != [ ] then
-      hostsCfg.sources
-    else if cfg.registry.src != null then
-      [ cfg.registry.src ]
-    else
-      [ ];
+  # Hosts are scanned from registry.src only
+  hostSources = toPathList cfg.registry.src;
 
   collectedHosts =
     if hostsCfg.enable && hostSources != [ ] then impLib.collectHosts hostSources else { };
@@ -220,7 +254,7 @@ in
       systems = lib.mkDefault systemsFromFile;
     })
 
-    (lib.mkIf (cfg.src != null) {
+    (lib.mkIf (srcPaths != [ ]) {
       flake = flakeTree;
 
       perSystem =
@@ -233,25 +267,18 @@ in
           ...
         }:
         let
-          perSystemPath = cfg.src + "/${cfg.perSystemDir}";
-          perSystemArgs = {
+          perSystemPaths = map (src: src + "/${cfg.perSystemDir}") srcPaths;
+          perSystemArgs = mkPerSystemArgs {
             inherit
-              lib
               pkgs
               system
-              self
               self'
-              inputs
               inputs'
-              imp
               ;
-            ${cfg.registry.name} = registry;
-          }
-          // cfg.args
-          // config.imp.args;
-
-          rawOutputs = buildTree perSystemPath perSystemArgs;
-
+            perSystemConfig = config;
+          };
+          trees = map (p: buildTree p perSystemArgs) perSystemPaths;
+          rawOutputs = lib.foldl' lib.recursiveUpdate { } trees;
           # Formatter excluded: buildTree returns raw attrset, combined section builds wrapper
           filteredOutputs = filterAttrs (k: _: k != "formatter") rawOutputs;
         in
@@ -270,23 +297,15 @@ in
           ...
         }:
         let
-          perSystemArgs = {
+          perSystemArgs = mkPerSystemArgs {
             inherit
-              lib
               pkgs
               system
-              self
               self'
-              inputs
               inputs'
-              imp
               ;
-            ${cfg.registry.name} = registry;
-            exports = exportSinks;
-          }
-          // cfg.args
-          // config.imp.args;
-
+            perSystemConfig = config;
+          };
           nonFormatterOutputs = filterAttrs (k: _: k != "formatter") builtOutputs.perSystem;
 
           # Evaluate static outputs
@@ -316,46 +335,33 @@ in
           ...
         }:
         let
-          perSystemArgs = {
+          # perSystemConfig = null to avoid infinite recursion
+          perSystemArgs = mkPerSystemArgs {
             inherit
-              lib
               pkgs
               system
-              self
               self'
-              inputs
               inputs'
-              imp
               ;
-            ${cfg.registry.name} = registry;
-            exports = exportSinks;
-          }
-          // cfg.args;
+          };
 
           # Unwrap { value, strategy } output record or evaluate function
-          unwrapLeaf =
-            v:
-            if builtins.isAttrs v && v ? value then
-              let val = v.value; in
-              if builtins.isFunction val then val perSystemArgs else val
-            else if builtins.isFunction v then
-              v perSystemArgs
-            else
-              v;
+          unwrapLeaf = utils.unwrapValue perSystemArgs;
 
           # Process __outputs.perSystem structure (e.g., { packages.foo = ...; devShells.default = ...; })
           processOutputs =
             attrs:
             lib.mapAttrs (
               _outputType: outputs:
-              if builtins.isAttrs outputs then
-                lib.mapAttrs (_name: unwrapLeaf) outputs
-              else
-                unwrapLeaf outputs
+              if builtins.isAttrs outputs then lib.mapAttrs (_name: unwrapLeaf) outputs else unwrapLeaf outputs
             ) attrs;
 
           evaluateFunctor =
-            { functor, isFunctor, source }:
+            {
+              functor,
+              isFunctor,
+              source,
+            }:
             let
               fn = if isFunctor then functor.__functor functor else functor;
               result = fn perSystemArgs;
@@ -398,7 +404,8 @@ in
           ...
         }:
         let
-          perSystemPath = if cfg.src != null then cfg.src + "/${cfg.perSystemDir}" else null;
+          # formatter.d and formatter.nix from first src only
+          perSystemPath = if firstSrc != null then firstSrc + "/${cfg.perSystemDir}" else null;
           formatterDPath = if perSystemPath != null then perSystemPath + "/formatter.d" else null;
           formatterNixPath = if perSystemPath != null then perSystemPath + "/formatter.nix" else null;
           hasFormatterD = formatterDPath != null && builtins.pathExists formatterDPath;
@@ -407,33 +414,25 @@ in
           hasDeferredFunctors = outputsCfg.enable && builtOutputs.deferredFunctors != [ ];
 
           # Skip if formatter.nix exists (user handles treefmt directly)
-          shouldBuildFormatter = (hasFormatterD || hasOutputsFormatter || hasDeferredFunctors) && !hasFormatterNix;
+          shouldBuildFormatter =
+            (hasFormatterD || hasOutputsFormatter || hasDeferredFunctors) && !hasFormatterNix;
 
-          perSystemArgs = {
+          # perSystemConfig = null - formatter section doesn't need config.imp.args
+          perSystemArgs = mkPerSystemArgs {
             inherit
-              lib
               pkgs
               system
-              self
               self'
-              inputs
               inputs'
-              imp
               ;
-            ${cfg.registry.name} = registry;
-            exports = exportSinks;
-          }
-          // cfg.args;
+          };
 
           treefmt-nix =
             inputs.imp.inputs.treefmt-nix or inputs.treefmt-nix
               or (throw "formatter.d/__outputs.formatter requires treefmt-nix input (available via inputs.imp.inputs.treefmt-nix)");
 
           formatterDFragments =
-            if hasFormatterD then
-              (imp.fragmentsWith perSystemArgs formatterDPath).asAttrs
-            else
-              { };
+            if hasFormatterD then (imp.fragmentsWith perSystemArgs formatterDPath).asAttrs else { };
 
           outputsFormatterFragments =
             if hasOutputsFormatter then
@@ -450,7 +449,11 @@ in
             if hasDeferredFunctors then
               let
                 extractFormatter =
-                  { functor, isFunctor, source }:
+                  {
+                    functor,
+                    isFunctor,
+                    source,
+                  }:
                   let
                     fn = if isFunctor then functor.__functor functor else functor;
                     result = fn perSystemArgs;

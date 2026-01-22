@@ -52,18 +52,8 @@
   Modules resolve as registry paths, `@`-prefixed input paths, or raw values.
 */
 let
-  isAttrs = builtins.isAttrs;
-  isFunction = builtins.isFunction;
-
-  isExcluded =
-    path:
-    let
-      str = toString path;
-      parts = builtins.filter builtins.isString (builtins.split "/" str);
-      nonEmpty = builtins.filter (x: x != "") parts;
-      basename = builtins.elemAt nonEmpty (builtins.length nonEmpty - 1);
-    in
-    builtins.substring 0 1 basename == "_";
+  scanner = import ./scanner.nix;
+  utils = import ./lib.nix;
 
   getHostName =
     path:
@@ -81,27 +71,6 @@ let
     in
     name;
 
-  safeExtractHost =
-    value:
-    let
-      hasIt = builtins.tryEval (isAttrs value && value ? __host && isAttrs value.__host);
-    in
-    if hasIt.success && hasIt.value then
-      let
-        host = value.__host;
-        forced = builtins.tryEval (builtins.deepSeq host host);
-      in
-      if forced.success then
-        {
-          __host = forced.value;
-          config = value.config or null;
-          extraConfig = value.extraConfig or null;
-        }
-      else
-        null
-    else
-      null;
-
   importAndExtract =
     path:
     let
@@ -109,75 +78,33 @@ let
     in
     if !imported.success then
       null
-    else if isAttrs imported.value then
-      safeExtractHost imported.value
+    else if builtins.isAttrs imported.value then
+      let
+        host = utils.extractHost imported.value;
+      in
+      if host == null then
+        null
+      else
+        {
+          __host = host;
+          config = imported.value.config or null;
+          extraConfig = imported.value.extraConfig or null;
+        }
     else
       null;
 
-  processFile =
-    acc: path:
-    let
-      extracted = importAndExtract path;
-      hostName = getHostName path;
-    in
-    if extracted == null then
-      acc
-    else
+  collectHosts = scanner.mkScanner {
+    extract = importAndExtract;
+    processResult =
+      acc: path: extracted:
       acc
       // {
-        ${hostName} = extracted // {
+        ${getHostName path} = extracted // {
           __source = toString path;
         };
       };
-
-  processDir =
-    acc: path:
-    let
-      entries = builtins.readDir path;
-      names = builtins.attrNames entries;
-
-      process =
-        acc: name:
-        let
-          entryPath = path + "/${name}";
-          entryType = entries.${name};
-          resolvedType = if entryType == "symlink" then builtins.readFileType entryPath else entryType;
-        in
-        if isExcluded entryPath then
-          acc
-        else if resolvedType == "regular" && builtins.match ".*\\.nix" name != null then
-          processFile acc entryPath
-        else if resolvedType == "directory" then
-          let
-            defaultPath = entryPath + "/default.nix";
-            hasDefault = builtins.pathExists defaultPath;
-          in
-          if hasDefault then processFile acc defaultPath else processDir acc entryPath
-        else
-          acc;
-    in
-    builtins.foldl' process acc names;
-
-  processPath =
-    acc: path:
-    let
-      rawPathType = builtins.readFileType path;
-      pathType = if rawPathType == "symlink" then builtins.readFileType path else rawPathType;
-    in
-    if pathType == "regular" then
-      processFile acc path
-    else if pathType == "directory" then
-      processDir acc path
-    else
-      acc;
-
-  collectHosts =
-    pathOrPaths:
-    let
-      paths = if builtins.isList pathOrPaths then pathOrPaths else [ pathOrPaths ];
-      result = builtins.foldl' processPath { } paths;
-    in
-    result;
+    initial = { };
+  };
 
 in
 collectHosts

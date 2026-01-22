@@ -131,23 +131,21 @@ The merge happens in order: `formatter.d/` fragments first (sorted by filename),
 
 ## Flake integration
 
-The flake-parts module automatically collects and builds outputs when `imp.outputs.enable = true` (the default). It scans both `imp.registry.src` and `imp.src`:
+The flake-parts module automatically collects and builds outputs when `imp.outputs.enable = true` (the default). It scans `imp.src` and `imp.bundles.src`:
 
 ```nix
 {
   imp = {
     src = ./outputs;
-    registry.src = ./nix/registry;
-    outputs = {
-      enable = true;
-      # Optionally restrict which paths to scan
-      sources = [ ./bundles ];
-    };
+    bundles.src = ./bundles;
+    outputs.enable = true;
   };
 }
 ```
 
 Collected outputs merge with outputs from the standard directory structure. A bundle's `__outputs.perSystem.packages.foo` combines with packages defined in `outputs/perSystem/packages.nix`.
+
+Both `imp.src` and `imp.bundles.src` accept a single path or a list of paths for scanning multiple directories.
 
 ## Bundle structure
 

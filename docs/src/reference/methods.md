@@ -610,6 +610,62 @@ sinkDefaults
 enableDebug
 : Include \_\_meta with contributor info (default: true).
 
+## Output Collection
+
+## `imp.collectOutputs` {#imp.collectOutputs}
+
+Scan directories for `__outputs` declarations and collect them.
+
+Enables self-contained bundles to contribute to multiple flake output types.
+perSystem outputs receive { pkgs, lib, system, ... } at evaluation time.
+
+### Example
+
+```nix
+imp.collectOutputs ./bundles
+# => {
+#   "perSystem.packages.lint" = [
+#     { source = "/lint/default.nix"; value = <function>; strategy = null; }
+#   ];
+#   "perSystem.devShells.default" = [
+#     { source = "/shell.nix"; value = <function>; strategy = "merge"; }
+#   ];
+# }
+```
+
+### Arguments
+
+pathOrPaths
+: Directory/file path, or list of paths, to scan for \_\_outputs declarations.
+
+## `imp.buildOutputs` {#imp.buildOutputs}
+
+Build flake outputs from collected \_\_outputs declarations.
+
+Separates perSystem outputs from flake-level outputs and merges
+contributions according to their strategies.
+
+### Example
+
+```nix
+buildOutputs {
+  lib = nixpkgs.lib;
+  collected = imp.collectOutputs ./bundles;
+}
+# => {
+#   perSystem = { "packages.lint" = <function>; "devShells.default" = <merged-function>; };
+#   flake = { "overlays.myOverlay" = <value>; };
+# }
+```
+
+### Arguments
+
+lib
+: nixpkgs lib for merge operations.
+
+collected
+: Output from collectOutputs.
+
 ## Host Configuration
 
 ## `imp.collectHosts` {#imp.collectHosts}

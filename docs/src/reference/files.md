@@ -392,6 +392,88 @@ buildExportSinks {
 - `sinkDefaults` (attrset): Glob patterns to default strategies (e.g., `{ "nixos.*" = "merge"; }`).
 - `enableDebug` (bool): Include `__meta` with contributor info (default: true).
 
+## Output Collection
+
+### collect-outputs.nix
+
+Collects `__outputs` declarations from directory trees.
+
+Scans `.nix` files for `__outputs` attributes targeting flake output paths.
+Enables self-contained bundles to contribute to multiple output types.
+
+#### Output Syntax
+
+```nix
+# perSystem outputs (receive { pkgs, lib, system, ... })
+{
+  __outputs.perSystem.packages.lint = { pkgs, ... }: pkgs.writeShellScript "lint" "...";
+  __outputs.perSystem.devShells.default = {
+    value = { pkgs, ... }: { buildInputs = [ ... ]; };
+    strategy = "merge";
+  };
+}
+
+# Top-level outputs
+{
+  __outputs.overlays.myOverlay = final: prev: { ... };
+}
+
+# Functor pattern for outputs needing inputs
+{
+  __inputs.foo.url = "github:owner/foo";
+  __functor = _: { inputs, ... }: {
+    __outputs.perSystem.packages.bar = { pkgs, ... }:
+      inputs.foo.packages.${pkgs.system}.default;
+  };
+}
+```
+
+#### Merge Strategies
+
+- `merge`: Deep merge via `lib.recursiveUpdate` (default for attrset outputs)
+- `override`: Last writer wins (default for non-attrset outputs)
+
+#### Arguments
+
+pathOrPaths
+: Directory, file, or list of paths to scan.
+
+### build-outputs.nix
+
+Builds flake outputs from collected `__outputs` declarations.
+
+Takes output from `collectOutputs` and produces structures suitable for
+flake-parts integration. Separates perSystem outputs (which need per-system
+evaluation) from top-level flake outputs.
+
+#### Example
+
+```nix
+buildOutputs {
+  lib = nixpkgs.lib;
+  collected = {
+    "perSystem.packages.lint" = [
+      { source = "/lint.nix"; value = { pkgs, ... }: mkLint pkgs; strategy = null; }
+    ];
+    "perSystem.devShells.default" = [
+      { source = "/shell.nix"; value = { pkgs, ... }: { nativeBuildInputs = [...]; }; strategy = "merge"; }
+    ];
+    "overlays.myOverlay" = [
+      { source = "/overlay.nix"; value = final: prev: { ... }; strategy = null; }
+    ];
+  };
+}
+# => {
+#   perSystem = { "packages.lint" = [...]; "devShells.default" = [...]; };
+#   flake = { "overlays.myOverlay" = [...]; };
+# }
+```
+
+#### Arguments
+
+- `lib` (attrset): nixpkgs lib for merge operations.
+- `collected` (attrset): Output from `collectOutputs`.
+
 ## Host Configuration
 
 ### collect-hosts.nix
@@ -467,12 +549,12 @@ buildHosts :: {
 #### Module Assembly Order
 
 1. Merged config tree from `bases` + `config` paths
-1. `home-manager.nixosModules.home-manager`
-1. Resolved sink modules from `sinks`
-1. Home Manager integration module (if `user` set)
-1. Extra modules from `modules`
-1. `extraConfig` module (if present)
-1. `{ system.stateVersion = ...; }`
+2. `home-manager.nixosModules.home-manager`
+3. Resolved sink modules from `sinks`
+4. Home Manager integration module (if `user` set)
+5. Extra modules from `modules`
+6. `extraConfig` module (if present)
+7. `{ system.stateVersion = ...; }`
 
 #### Path Resolution
 

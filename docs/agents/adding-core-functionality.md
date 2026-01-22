@@ -17,10 +17,10 @@ Quick checklist after implementing new imp features (e.g., `__outputs`, `__expor
 
 ## Documentation
 
-8. Manifest - Update `docs/manifest.nix`:
-   - Add files to `files.sections`
-   - Add exports to `methods.sections`
-9. Concept doc - Create `docs/src/concepts/<feature>.md` if needed
+08. Manifest - Update `docs/manifest.nix`:
+    - Add files to `files.sections`
+    - Add exports to `methods.sections`
+09. Concept doc - Create `docs/src/concepts/<feature>.md` if needed
 10. SUMMARY.md - Add concept doc to `docs/src/SUMMARY.md` navigation
 
 ## Verify

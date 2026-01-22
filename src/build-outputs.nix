@@ -33,7 +33,10 @@
   - `lib` (attrset): nixpkgs lib for merge operations.
   - `collected` (attrset): Output from `collectOutputs`.
 */
-{ lib, collected ? { } }:
+{
+  lib,
+  collected ? { },
+}:
 let
   hasPrefix = lib.hasPrefix;
   removePrefix = lib.removePrefix;
@@ -86,8 +89,11 @@ let
         if uniqueStrategies != [ ] then
           builtins.head uniqueStrategies
         else
-          # Default: merge for multiple contributors, override for single
-          if builtins.length records > 1 then "merge" else "override";
+        # Default: merge for multiple contributors, override for single
+        if builtins.length records > 1 then
+          "merge"
+        else
+          "override";
 
       conflictError =
         let
@@ -114,8 +120,7 @@ let
           in
           if allFunctions then
             # Return a function that merges results
-            args:
-            builtins.foldl' (acc: fn: recursiveUpdate acc (fn args)) { } values
+            args: builtins.foldl' (acc: fn: recursiveUpdate acc (fn args)) { } values
           else if builtins.all lib.isAttrs values then
             builtins.foldl' recursiveUpdate { } values
           else
@@ -131,8 +136,7 @@ let
   partitioned = partitionOutputs;
 
   buildSection =
-    section:
-    builtins.mapAttrs (outputKey: records: mergeOutputRecords outputKey records) section;
+    section: builtins.mapAttrs (outputKey: records: mergeOutputRecords outputKey records) section;
 
 in
 {

@@ -109,11 +109,12 @@ Disabling debug mode (`enableDebug = false`) removes `__meta` and returns raw va
 
 ## Flake integration
 
-The flake-parts module automatically builds and exposes export sinks when `imp.exports.enable = true` (the default). It scans both `imp.registry.src` and `imp.src` unless you explicitly set `imp.exports.sources`:
+The flake-parts module automatically builds and exposes export sinks when `imp.exports.enable = true` (the default). It scans both `imp.registry.src` and `imp.src`:
 
 ```nix
 {
   imp = {
+    src = ./outputs;
     registry.src = ./nix/registry;
     exports = {
       enable = true;

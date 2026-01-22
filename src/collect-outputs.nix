@@ -42,31 +42,11 @@
   : Directory, file, or list of paths to scan.
 */
 let
+  scanner = import ./scanner.nix;
+  utils = import ./lib.nix;
+
   isAttrs = builtins.isAttrs;
   isFunction = builtins.isFunction;
-
-  isExcluded =
-    path:
-    let
-      str = toString path;
-      parts = builtins.filter (x: x != "") (builtins.split "/" str);
-      basename = builtins.elemAt parts (builtins.length parts - 1);
-    in
-    builtins.substring 0 1 basename == "_";
-
-  safeExtractOutputs =
-    value:
-    let
-      hasIt = builtins.tryEval (isAttrs value && value ? __outputs && isAttrs value.__outputs);
-    in
-    if hasIt.success && hasIt.value then
-      let
-        outputs = value.__outputs;
-        forced = builtins.tryEval (builtins.deepSeq (builtins.attrNames outputs) outputs);
-      in
-      if forced.success then forced.value else { }
-    else
-      { };
 
   /**
     For files that are functions or have __functor, return a special marker.
@@ -91,7 +71,7 @@ let
         };
       }
     else
-      { };
+      null;
 
   importAndExtract =
     path:
@@ -99,35 +79,26 @@ let
       imported = builtins.tryEval (import path);
     in
     if !imported.success then
-      { }
+      null
     else if isAttrs imported.value then
       let
-        staticOutputs = safeExtractOutputs imported.value;
-        deferredOutputs = if staticOutputs == { } then tryDeferredOutputs imported.value path else { };
+        staticOutputs = utils.extractOutputs imported.value;
+        deferredOutputs = if staticOutputs == null then tryDeferredOutputs imported.value path else null;
       in
-      if staticOutputs != { } then staticOutputs else deferredOutputs
+      if staticOutputs != null then
+        { outputs = staticOutputs; }
+      else if deferredOutputs != null then
+        deferredOutputs
+      else
+        null
     else if isFunction imported.value then
       # Plain function - defer for later evaluation
       tryDeferredOutputs imported.value path
     else
-      { };
+      null;
 
   # Leaf outputs have `value` or `strategy`, or are functions/non-attrsets
-  isLeafOutput =
-    entry: !isAttrs entry || entry ? value || entry ? strategy || isFunction entry;
-
-  normalizeOutputEntry =
-    entry:
-    if isAttrs entry && entry ? value then
-      {
-        value = entry.value;
-        strategy = entry.strategy or null;
-      }
-    else
-      {
-        value = entry;
-        strategy = null;
-      };
+  isLeafOutput = entry: !isAttrs entry || entry ? value || entry ? strategy || isFunction entry;
 
   # Flatten nested `__outputs.perSystem.packages.foo` into `"perSystem.packages.foo"` keys
   flattenOutputs =
@@ -152,7 +123,7 @@ let
     builtins.foldl' (
       acc: item:
       let
-        entry = normalizeOutputEntry item.entry;
+        entry = utils.normalizeValueStrategy item.entry;
         outputRecord = {
           source = toString sourcePath;
           inherit (entry) value strategy;
@@ -161,7 +132,8 @@ let
       in
       acc
       // {
-        ${outputKey} = if acc ? ${outputKey} then acc.${outputKey} ++ [ outputRecord ] else [ outputRecord ];
+        ${outputKey} =
+          if acc ? ${outputKey} then acc.${outputKey} ++ [ outputRecord ] else [ outputRecord ];
       }
     ) { } flattened;
 
@@ -181,67 +153,17 @@ let
       }
     ) { } uniqueKeys;
 
-  processFile =
-    acc: path:
-    let
-      outputs = importAndExtract path;
-    in
-    if outputs == { } then
-      acc
-    else if outputs ? __deferredFunctor then
-      # Store deferred functors separately for later evaluation
-      acc // { __deferredFunctors = (acc.__deferredFunctors or [ ]) ++ [ outputs.__deferredFunctor ]; }
-    else
-      mergeOutputs acc (processFileOutputs path outputs);
-
-  processDir =
-    acc: path:
-    let
-      entries = builtins.readDir path;
-      names = builtins.attrNames entries;
-
-      process =
-        acc: name:
-        let
-          entryPath = path + "/${name}";
-          entryType = entries.${name};
-          resolvedType = if entryType == "symlink" then builtins.readFileType entryPath else entryType;
-        in
-        if isExcluded entryPath then
-          acc
-        else if resolvedType == "regular" && builtins.match ".*\\.nix" name != null then
-          processFile acc entryPath
-        else if resolvedType == "directory" then
-          let
-            defaultPath = entryPath + "/default.nix";
-            hasDefault = builtins.pathExists defaultPath;
-          in
-          if hasDefault then processFile acc defaultPath else processDir acc entryPath
-        else
-          acc;
-    in
-    builtins.foldl' process acc names;
-
-  processPath =
-    acc: path:
-    let
-      rawPathType = builtins.readFileType path;
-      pathType = if rawPathType == "symlink" then builtins.readFileType path else rawPathType;
-    in
-    if pathType == "regular" then
-      processFile acc path
-    else if pathType == "directory" then
-      processDir acc path
-    else
-      acc;
-
-  collectOutputs =
-    pathOrPaths:
-    let
-      paths = if builtins.isList pathOrPaths then pathOrPaths else [ pathOrPaths ];
-      result = builtins.foldl' processPath { } paths;
-    in
-    result;
+  collectOutputs = scanner.mkScanner {
+    extract = importAndExtract;
+    processResult =
+      acc: path: result:
+      if result ? __deferredFunctor then
+        # Store deferred functors separately for later evaluation
+        acc // { __deferredFunctors = (acc.__deferredFunctors or [ ]) ++ [ result.__deferredFunctor ]; }
+      else
+        mergeOutputs acc (processFileOutputs path result.outputs);
+    initial = { };
+  };
 
 in
 collectOutputs

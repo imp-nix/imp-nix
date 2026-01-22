@@ -97,7 +97,6 @@ Run `nix run .#imp-flake` after adding `__inputs` declarations. The generated `f
     registry.src = ./nix/registry;
     hosts = {
       enable = true;
-      sources = [ ./nix/registry/hosts ];  # optional, defaults to registry.src
       defaults = {
         system = "x86_64-linux";
         stateVersion = "24.11";
@@ -107,7 +106,7 @@ Run `nix run .#imp-flake` after adding `__inputs` declarations. The generated `f
 }
 ```
 
-With `hosts.enable = true`, imp scans `sources` for files containing `__host` declarations. Each file becomes a `nixosConfiguration` named after its directory (for `default.nix`) or filename (for other `.nix` files). Files in directories starting with `_` are excluded.
+With `hosts.enable = true`, imp scans `registry.src` for files containing `__host` declarations. Each file becomes a `nixosConfiguration` named after its directory (for `default.nix`) or filename (for other `.nix` files). Files in directories starting with `_` are excluded.
 
 ## Generated configuration structure
 
