@@ -61,6 +61,9 @@ let
     else
       [ v ];
 
+  # Merge configs: outer values override inner (recursiveUpdate)
+  mergeConfigs = lib.recursiveUpdate;
+
   # Get first path from src (for single-path operations like systems.nix)
   firstSrc =
     if cfg.src == null then
@@ -412,7 +415,7 @@ in
               outerConfig =
                 if configEntry != null && configEntry ? outer then evalSingleConfig args configEntry.outer else { };
             in
-            lib.recursiveUpdate innerConfig outerConfig;
+            mergeConfigs innerConfig outerConfig;
 
           isBuildDepsKey = k: lib.hasPrefix "buildDeps." k;
           staticBuildDepsOutputs = filterAttrs (k: _: isBuildDepsKey k) builtOutputs.perSystem;
@@ -591,7 +594,7 @@ in
               outerConfig =
                 if configEntry != null && configEntry ? outer then evalSingleConfig args configEntry.outer else { };
             in
-            lib.recursiveUpdate innerConfig outerConfig;
+            mergeConfigs innerConfig outerConfig;
 
           # Extract formatter config from deferred functors
           deferredFormatterFragments =
