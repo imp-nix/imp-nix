@@ -13,7 +13,7 @@
   - `<fragment root>/default.nix` - Directory with default.nix entry point
   - `<fragment root>/package.nix` - Fallback for default.nix
 
-  Directory fragments may be useful for bundling resources, e.g. agent skills.
+  Directory fragments may be useful for bundling resources.
 
   # Composition patterns
 

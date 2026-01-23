@@ -226,14 +226,11 @@ let
   collectOutputs = import ./collect/collect-outputs.nix;
 
   /**
-    Bundle utilities for collecting skills and config from bundle directories.
+    Bundle utilities for collecting config from bundle directories.
 
     # Example
 
     ```nix
-    imp.bundles.collectSkills [ ./bundles ]
-    # => { test-skill = /path/to/bundles/my-bundle/skills/test-skill; }
-
     imp.bundles.collectConfig [ ./bundles ]
     # => { "/path/to/bundles/lint" = { inner = ...; outer = ...; }; }
     ```

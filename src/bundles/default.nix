@@ -3,30 +3,9 @@
 
   Bundles are self-contained directories that contribute to flake outputs.
   This module provides utilities for collecting bundle-specific data like
-  skills and configuration.
+  configuration.
 */
 {
-  /**
-    Scan bundle directories for skills/ subdirectories.
-
-    Collects Claude Code skills from bundles. Each bundle can have a
-    skills/ directory containing skill folders. Returns a mapping of
-    skill names to their source paths.
-
-    # Example
-
-    ```nix
-    imp.bundles.collectSkills [ ./bundles ]
-    # => { test-skill = /path/to/bundles/my-bundle/skills/test-skill; }
-    ```
-
-    # Arguments
-
-    bundlesParentPaths
-    : List of bundles parent directories to scan for skills.
-  */
-  collectSkills = import ./collect-skills.nix;
-
   /**
     Scan bundle directories for config files.
 

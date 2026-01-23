@@ -777,45 +777,5 @@ in
       */
       flake.nixosConfigurations = generatedNixosConfigurations;
     })
-
-    (
-      let
-        collectedSkills = if bundlePaths != [ ] then impLib.bundles.collectSkills bundlePaths else { };
-        skillNames = builtins.attrNames collectedSkills;
-        hasSkills = skillNames != [ ];
-      in
-      lib.mkIf (cfg.bundles.skills.enable && hasSkills) {
-        perSystem =
-          { pkgs, ... }:
-          {
-            /*
-              Symlink bundle skills to .claude/skills/
-
-              Bundles can include Claude Code skills in a skills/ subdirectory.
-              Each skill folder becomes a symlink in .claude/skills/.
-
-              Run: nix run .#imp-link-skills
-            */
-            apps.imp-link-skills = {
-              type = "app";
-              program = toString (
-                pkgs.writeShellScript "imp-link-skills" ''
-                  mkdir -p .claude/skills
-                  ${lib.concatStringsSep "\n" (
-                    map (
-                      name:
-                      "ln -sfn ${
-                        lib.escapeShellArg (toString collectedSkills.${name})
-                      } .claude/skills/${lib.escapeShellArg name}"
-                    ) skillNames
-                  )}
-                  echo "imp-link-skills: linked ${toString (builtins.length skillNames)} skill(s)"
-                ''
-              );
-              meta.description = "Symlink bundle skills to .claude/skills/";
-            };
-          };
-      }
-    )
   ];
 }

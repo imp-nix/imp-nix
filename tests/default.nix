@@ -14,5 +14,4 @@ in
 // (import ./outputs.nix args)
 // (import ./hosts.nix args)
 // (import ./fragments.nix args)
-// (import ./skills.nix args)
 // (import ./config.nix args)
