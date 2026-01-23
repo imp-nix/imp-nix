@@ -9,7 +9,7 @@
 */
 let
   utils = import ./lib.nix;
-  perform = import ./collect.nix;
+  perform = import ./collect;
   inherit (utils) inModuleEval;
 
   /**
@@ -50,7 +50,7 @@ let
     pathOrPaths
     : Directory/file path, or list of paths, to scan for __inputs declarations.
   */
-  collectInputs = import ./collect-inputs.nix;
+  collectInputs = import ./collect/collect-inputs.nix;
 
   /**
     Scan directories for `__exports` declarations and collect them.
@@ -92,7 +92,7 @@ let
     pathOrPaths
     : Directory/file path, or list of paths, to scan for __exports declarations.
   */
-  collectExports = import ./collect-exports.nix;
+  collectExports = import ./collect/collect-exports.nix;
 
   /**
     Build export sinks from collected exports.
@@ -160,7 +160,7 @@ let
     pathOrPaths
     : Directory/file path, or list of paths, to scan for __host declarations.
   */
-  collectHosts = import ./collect-hosts.nix;
+  collectHosts = import ./collect/collect-hosts.nix;
 
   /**
     Build nixosConfigurations from collected host declarations.
@@ -223,7 +223,7 @@ let
     pathOrPaths
     : Directory/file path, or list of paths, to scan for __outputs declarations.
   */
-  collectOutputs = import ./collect-outputs.nix;
+  collectOutputs = import ./collect/collect-outputs.nix;
 
   /**
     Bundle utilities for collecting skills and config from bundle directories.
@@ -269,7 +269,7 @@ let
   */
   buildOutputs = import ./build-outputs.nix;
 
-  flakeFormat = import ./format-flake.nix;
+  flakeFormat = import ./flake/format-flake.nix;
   inherit (flakeFormat) formatInputs formatFlake;
 
   # Registry utilities (requires lib)

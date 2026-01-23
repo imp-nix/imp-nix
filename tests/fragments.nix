@@ -3,7 +3,7 @@
   imp,
 }:
 let
-  fragmentsLib = import ../src/fragments.nix { inherit lib; };
+  fragmentsLib = import ../src/tree/fragments.nix { inherit lib; };
 in
 {
   fragments."test asString concatenates shell scripts" = {

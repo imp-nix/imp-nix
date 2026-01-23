@@ -7,7 +7,7 @@
   - Path normalization (absolute to relative)
 */
 let
-  utils = import ./lib.nix;
+  utils = import ../lib.nix;
   inherit (utils)
     compose
     and

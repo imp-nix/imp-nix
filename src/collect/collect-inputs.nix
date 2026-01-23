@@ -34,8 +34,8 @@
   : Directory/file path, or list of paths, to scan for __inputs declarations.
 */
 let
-  scanner = import ./scanner.nix;
-  utils = import ./lib.nix;
+  scanner = import ../scanner.nix;
+  utils = import ../lib.nix;
 
   # Import a `.nix` file and extract `__inputs` from attrsets only
   importAndExtract =

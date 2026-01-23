@@ -265,7 +265,7 @@ in
     if updated.lib == null then
       throw "You need to call withLib before using tree."
     else
-      import ./tree.nix {
+      import ./tree {
         inherit (updated) lib treef filterf;
       } path;
 
@@ -318,7 +318,7 @@ in
     if updated.lib == null then
       throw "You need to call withLib before using configTree."
     else
-      import ./config-tree.nix {
+      import ./tree/config-tree.nix {
         inherit (updated) lib filterf;
       } path;
 
@@ -344,7 +344,7 @@ in
     if updated.lib == null then
       throw "You need to call withLib before using configTreeWith."
     else
-      import ./config-tree.nix {
+      import ./tree/config-tree.nix {
         inherit (updated) lib filterf;
         inherit extraArgs;
       } path;
@@ -376,13 +376,13 @@ in
       throw "You need to call withLib before using mergeConfigTrees."
     else if builtins.isList arg then
       # Called as: mergeConfigTrees [ paths ]
-      import ./merge-config-trees.nix {
+      import ./tree/merge-config-trees.nix {
         inherit (updated) lib filterf;
       } arg
     else
       # Called as: mergeConfigTrees { options } [ paths ]
       paths:
-      import ./merge-config-trees.nix {
+      import ./tree/merge-config-trees.nix {
         inherit (updated) lib filterf;
         strategy = arg.strategy or "override";
         extraArgs = arg.extraArgs or { };
@@ -537,7 +537,7 @@ in
     if updated.lib == null then
       throw "You need to call withLib before using fragments."
     else
-      (import ./fragments.nix { inherit (updated) lib; }).collectFragments dir;
+      (import ./tree/fragments.nix { inherit (updated) lib; }).collectFragments dir;
 
   /**
     Collect fragments with arguments passed to each .nix file.
@@ -567,5 +567,5 @@ in
     if updated.lib == null then
       throw "You need to call withLib before using fragmentsWith."
     else
-      (import ./fragments.nix { inherit (updated) lib; }).collectFragmentsWith args dir;
+      (import ./tree/fragments.nix { inherit (updated) lib; }).collectFragmentsWith args dir;
 }

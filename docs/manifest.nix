@@ -25,16 +25,16 @@
       {
         name = "Import & Collection";
         files = [
-          "collect.nix"
-          "tree.nix"
-          "fragments.nix"
+          "collect/default.nix"
+          "tree/default.nix"
+          "tree/fragments.nix"
         ];
       }
       {
         name = "Config Trees";
         files = [
-          "config-tree.nix"
-          "merge-config-trees.nix"
+          "tree/config-tree.nix"
+          "tree/merge-config-trees.nix"
         ];
       }
       {
@@ -46,21 +46,21 @@
       {
         name = "Export Sinks";
         files = [
-          "collect-exports.nix"
+          "collect/collect-exports.nix"
           "export-sinks.nix"
         ];
       }
       {
         name = "Output Collection";
         files = [
-          "collect-outputs.nix"
+          "collect/collect-outputs.nix"
           "build-outputs.nix"
         ];
       }
       {
         name = "Host Configuration";
         files = [
-          "collect-hosts.nix"
+          "collect/collect-hosts.nix"
           "build-hosts.nix"
         ];
       }
@@ -68,18 +68,18 @@
         name = "Flake Integration";
         files = [
           {
-            name = "flake-module.nix";
+            name = "flake/flake-module.nix";
             fallback = "flake-parts module, defines `imp.*` options.";
           }
           {
-            name = "options-schema.nix";
+            name = "flake/options-schema.nix";
             fallback = "Shared options schema for imp.* options.";
           }
           {
-            name = "collect-inputs.nix";
+            name = "collect/collect-inputs.nix";
             fallback = "`__inputs` collection from flake inputs.";
           }
-          "format-flake.nix"
+          "flake/format-flake.nix"
         ];
       }
       {
@@ -107,7 +107,7 @@
       }
       {
         heading = "Format Flake";
-        file = "format-flake.nix";
+        file = "flake/format-flake.nix";
       }
       {
         heading = "Export Sinks";
@@ -136,7 +136,7 @@
       }
       {
         heading = "Fragments";
-        file = "fragments.nix";
+        file = "tree/fragments.nix";
         exports = [
           "collectFragments"
           "collectFragmentsWith"

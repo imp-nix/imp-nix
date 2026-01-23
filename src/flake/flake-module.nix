@@ -34,9 +34,9 @@ let
 
   inherit (flake-parts-lib) mkPerSystemOption;
 
-  impLib = import ./.;
-  utils = import ./lib.nix;
-  registryLib = import ./registry.nix { inherit lib; };
+  impLib = import ../.;
+  utils = import ../lib.nix;
+  registryLib = import ../registry.nix { inherit lib; };
 
   cfg = config.imp;
 

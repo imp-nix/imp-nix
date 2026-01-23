@@ -42,8 +42,8 @@
   : Directory, file, or list of paths to scan.
 */
 let
-  scanner = import ./scanner.nix;
-  utils = import ./lib.nix;
+  scanner = import ../scanner.nix;
+  utils = import ../lib.nix;
 
   isAttrs = builtins.isAttrs;
   isFunction = builtins.isFunction;

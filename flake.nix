@@ -54,7 +54,7 @@
       ];
 
       imports = [
-        ./src/flake-module.nix
+        ./src/flake/flake-module.nix
         inputs.docgen.flakeModules.docs
       ];
 
@@ -76,7 +76,7 @@
         siteDir = ./docs;
         name = "imp";
         anchorPrefix = "imp";
-        optionsModule = ./src/options-schema.nix;
+        optionsModule = ./src/flake/options-schema.nix;
         optionsPrefix = "imp.";
       };
     };

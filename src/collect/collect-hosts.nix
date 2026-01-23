@@ -52,8 +52,8 @@
   Modules resolve as registry paths, `@`-prefixed input paths, or raw values.
 */
 let
-  scanner = import ./scanner.nix;
-  utils = import ./lib.nix;
+  scanner = import ../scanner.nix;
+  utils = import ../lib.nix;
 
   getHostName =
     path:
