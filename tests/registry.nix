@@ -9,50 +9,50 @@ in
 {
   # buildRegistry tests
   registry."test builds nested attrset from directory" = {
-    expr = registryLib.buildRegistry ./fixtures/registry-test;
+    expr = registryLib.buildRegistry ./fixtures/registry/basic;
     expected = {
       home = {
-        __path = ./fixtures/registry-test/home;
-        alice = ./fixtures/registry-test/home/alice;
-        bob = ./fixtures/registry-test/home/bob.nix;
+        __path = ./fixtures/registry/basic/home;
+        alice = ./fixtures/registry/basic/home/alice;
+        bob = ./fixtures/registry/basic/home/bob.nix;
       };
       modules = {
-        __path = ./fixtures/registry-test/modules;
+        __path = ./fixtures/registry/basic/modules;
         nixos = {
-          __path = ./fixtures/registry-test/modules/nixos;
-          base = ./fixtures/registry-test/modules/nixos/base.nix;
+          __path = ./fixtures/registry/basic/modules/nixos;
+          base = ./fixtures/registry/basic/modules/nixos/base.nix;
         };
         home = {
-          __path = ./fixtures/registry-test/modules/home;
-          base = ./fixtures/registry-test/modules/home/base.nix;
+          __path = ./fixtures/registry/basic/modules/home;
+          base = ./fixtures/registry/basic/modules/home/base.nix;
         };
       };
       hosts = {
-        __path = ./fixtures/registry-test/hosts;
-        server = ./fixtures/registry-test/hosts/server;
-        workstation = ./fixtures/registry-test/hosts/workstation;
+        __path = ./fixtures/registry/basic/hosts;
+        server = ./fixtures/registry/basic/hosts/server;
+        workstation = ./fixtures/registry/basic/hosts/workstation;
       };
     };
   };
 
   registry."test directory with default.nix returns directory path" = {
-    expr = (registryLib.buildRegistry ./fixtures/registry-test).home.alice;
-    expected = ./fixtures/registry-test/home/alice;
+    expr = (registryLib.buildRegistry ./fixtures/registry/basic).home.alice;
+    expected = ./fixtures/registry/basic/home/alice;
   };
 
   registry."test file returns file path" = {
-    expr = (registryLib.buildRegistry ./fixtures/registry-test).home.bob;
-    expected = ./fixtures/registry-test/home/bob.nix;
+    expr = (registryLib.buildRegistry ./fixtures/registry/basic).home.bob;
+    expected = ./fixtures/registry/basic/home/bob.nix;
   };
 
   registry."test nested module access" = {
-    expr = (registryLib.buildRegistry ./fixtures/registry-test).modules.nixos.base;
-    expected = ./fixtures/registry-test/modules/nixos/base.nix;
+    expr = (registryLib.buildRegistry ./fixtures/registry/basic).modules.nixos.base;
+    expected = ./fixtures/registry/basic/modules/nixos/base.nix;
   };
 
   registry."test directory without default.nix has __path" = {
-    expr = (registryLib.buildRegistry ./fixtures/registry-test).modules.nixos.__path;
-    expected = ./fixtures/registry-test/modules/nixos;
+    expr = (registryLib.buildRegistry ./fixtures/registry/basic).modules.nixos.__path;
+    expected = ./fixtures/registry/basic/modules/nixos;
   };
 
   # toPath tests
@@ -137,34 +137,34 @@ in
 
   # imp.registry integration
   registry."test imp.registry builds registry from path" = {
-    expr = lit.registry ./fixtures/registry-test;
+    expr = lit.registry ./fixtures/registry/basic;
     expected = {
       home = {
-        __path = ./fixtures/registry-test/home;
-        alice = ./fixtures/registry-test/home/alice;
-        bob = ./fixtures/registry-test/home/bob.nix;
+        __path = ./fixtures/registry/basic/home;
+        alice = ./fixtures/registry/basic/home/alice;
+        bob = ./fixtures/registry/basic/home/bob.nix;
       };
       modules = {
-        __path = ./fixtures/registry-test/modules;
+        __path = ./fixtures/registry/basic/modules;
         nixos = {
-          __path = ./fixtures/registry-test/modules/nixos;
-          base = ./fixtures/registry-test/modules/nixos/base.nix;
+          __path = ./fixtures/registry/basic/modules/nixos;
+          base = ./fixtures/registry/basic/modules/nixos/base.nix;
         };
         home = {
-          __path = ./fixtures/registry-test/modules/home;
-          base = ./fixtures/registry-test/modules/home/base.nix;
+          __path = ./fixtures/registry/basic/modules/home;
+          base = ./fixtures/registry/basic/modules/home/base.nix;
         };
       };
       hosts = {
-        __path = ./fixtures/registry-test/hosts;
-        server = ./fixtures/registry-test/hosts/server;
-        workstation = ./fixtures/registry-test/hosts/workstation;
+        __path = ./fixtures/registry/basic/hosts;
+        server = ./fixtures/registry/basic/hosts/server;
+        workstation = ./fixtures/registry/basic/hosts/workstation;
       };
     };
   };
 
   registry."test imp.registry fails without lib" = {
-    expr = imp.registry ./fixtures/registry-test;
+    expr = imp.registry ./fixtures/registry/basic;
     expectedError.type = "EvalError";
   };
 
@@ -172,7 +172,7 @@ in
   registry."test registry path can be used with imp" = {
     expr =
       let
-        reg = lit.registry ./fixtures/registry-test;
+        reg = lit.registry ./fixtures/registry/basic;
         imported = import reg.home.alice;
       in
       imported.name;
@@ -182,7 +182,7 @@ in
   registry."test registry node can be passed to imp" = {
     expr =
       let
-        reg = lit.registry ./fixtures/registry-test;
+        reg = lit.registry ./fixtures/registry/basic;
         # modules.nixos is a registry node with __path
         result = imp reg.modules.nixos;
       in
@@ -194,7 +194,7 @@ in
   registry."test registry node __path works with imp" = {
     expr =
       let
-        reg = lit.registry ./fixtures/registry-test;
+        reg = lit.registry ./fixtures/registry/basic;
         # Access __path directly
         result = imp reg.modules.nixos.__path;
       in
@@ -204,7 +204,7 @@ in
 
   # Collision detection tests
   registry."test collision between foo.nix and foo/ throws error" = {
-    expr = registryLib.buildRegistry ./fixtures/registry-collision-test;
+    expr = registryLib.buildRegistry ./fixtures/registry/collision;
     expectedError.type = "ThrownError";
     expectedError.msg = ".*collision for attribute 'foo' from multiple sources.*";
   };

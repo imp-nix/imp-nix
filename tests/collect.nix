@@ -45,7 +45,7 @@ in
     expr =
       let
         registryLib = import ../src/registry.nix { inherit lib; };
-        registry = registryLib.buildRegistry ./fixtures/registry-test;
+        registry = registryLib.buildRegistry ./fixtures/registry/basic;
         # home.alice is a registry node with __path
         result = lit.leaves registry.home.alice;
       in

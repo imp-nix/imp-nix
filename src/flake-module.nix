@@ -200,6 +200,10 @@ let
   collectedOutputs =
     if outputsCfg.enable && outputSources != [ ] then impLib.collectOutputs outputSources else { };
 
+  # Collect config from bundles (only directory bundles can have config)
+  collectedConfig =
+    if bundlePaths != [ ] then impLib.bundles.collectConfig bundlePaths else { };
+
   builtOutputs =
     if outputsCfg.enable && collectedOutputs != { } then
       impLib.buildOutputs {
@@ -373,6 +377,43 @@ in
               ;
           };
 
+          # Get bundle directory from source file path (e.g., /bundles/lint/default.nix -> /bundles/lint)
+          getBundleDir =
+            source:
+            let
+              parts = lib.splitString "/" source;
+              # Remove the last element (filename) to get the directory
+              dirParts = lib.init parts;
+            in
+            lib.concatStringsSep "/" dirParts;
+
+          # Evaluate a single config value (handles functions, functors, and static values)
+          evalSingleConfig =
+            args: configRecord:
+            let
+              value = configRecord.value;
+            in
+            if builtins.isFunction value then
+              value args
+            else if builtins.isAttrs value && value ? __functor then
+              value.__functor value args
+            else
+              value;
+
+          # Get evaluated config for a bundle source path
+          # Evaluates inner and outer configs, then deep-merges (outer overrides inner)
+          getConfigForSource =
+            args: source:
+            let
+              bundleDir = getBundleDir source;
+              configEntry = collectedConfig.${bundleDir} or null;
+              innerConfig =
+                if configEntry != null && configEntry ? inner then evalSingleConfig args configEntry.inner else { };
+              outerConfig =
+                if configEntry != null && configEntry ? outer then evalSingleConfig args configEntry.outer else { };
+            in
+            lib.recursiveUpdate innerConfig outerConfig;
+
           isBuildDepsKey = k: lib.hasPrefix "buildDeps." k;
           staticBuildDepsOutputs = filterAttrs (k: _: isBuildDepsKey k) builtOutputs.perSystem;
           staticBuildDeps = lib.mapAttrs' (
@@ -392,8 +433,10 @@ in
               source,
             }:
             let
+              bundleConfig = getConfigForSource baseArgs source;
+              argsWithConfig = baseArgs // { config = bundleConfig; };
               fn = if isFunctor then functor.__functor functor else functor;
-              result = fn baseArgs;
+              result = fn argsWithConfig;
               outputs = result.__outputs or { };
               perSystem = outputs.perSystem or { };
             in
@@ -422,7 +465,7 @@ in
               if builtins.isAttrs outputs then lib.mapAttrs (_name: unwrapLeaf) outputs else unwrapLeaf outputs
             ) attrs;
 
-          # Second pass: evaluate functors with collected buildDeps
+          # Second pass: evaluate functors with collected buildDeps and config
           evaluateFunctor =
             {
               functor,
@@ -430,8 +473,10 @@ in
               source,
             }:
             let
+              bundleConfig = getConfigForSource perSystemArgs source;
+              argsWithConfig = perSystemArgs // { config = bundleConfig; };
               fn = if isFunctor then functor.__functor functor else functor;
-              result = fn perSystemArgs;
+              result = fn argsWithConfig;
               outputs = result.__outputs or { };
               perSystem = outputs.perSystem or { };
               # perSystem keys are top-level ("buildDeps", "packages"), not dot-separated
@@ -512,6 +557,42 @@ in
             else
               { };
 
+          # Get bundle directory from source file path (e.g., /bundles/lint/default.nix -> /bundles/lint)
+          getBundleDir =
+            source:
+            let
+              parts = lib.splitString "/" source;
+              dirParts = lib.init parts;
+            in
+            lib.concatStringsSep "/" dirParts;
+
+          # Evaluate a single config value (handles functions, functors, and static values)
+          evalSingleConfig =
+            args: configRecord:
+            let
+              value = configRecord.value;
+            in
+            if builtins.isFunction value then
+              value args
+            else if builtins.isAttrs value && value ? __functor then
+              value.__functor value args
+            else
+              value;
+
+          # Get evaluated config for a bundle source path
+          # Evaluates inner and outer configs, then deep-merges (outer overrides inner)
+          getConfigForSource =
+            args: source:
+            let
+              bundleDir = getBundleDir source;
+              configEntry = collectedConfig.${bundleDir} or null;
+              innerConfig =
+                if configEntry != null && configEntry ? inner then evalSingleConfig args configEntry.inner else { };
+              outerConfig =
+                if configEntry != null && configEntry ? outer then evalSingleConfig args configEntry.outer else { };
+            in
+            lib.recursiveUpdate innerConfig outerConfig;
+
           # Extract formatter config from deferred functors
           deferredFormatterFragments =
             if hasDeferredFunctors then
@@ -523,8 +604,10 @@ in
                     source,
                   }:
                   let
+                    bundleConfig = getConfigForSource perSystemArgs source;
+                    argsWithConfig = perSystemArgs // { config = bundleConfig; };
                     fn = if isFunctor then functor.__functor functor else functor;
-                    result = fn perSystemArgs;
+                    result = fn argsWithConfig;
                     outputs = result.__outputs or { };
                     formatter = outputs.perSystem.formatter or null;
                   in
@@ -694,7 +777,7 @@ in
 
     (
       let
-        collectedSkills = if bundlePaths != [ ] then impLib.collectSkills bundlePaths else { };
+        collectedSkills = if bundlePaths != [ ] then impLib.bundles.collectSkills bundlePaths else { };
         skillNames = builtins.attrNames collectedSkills;
         hasSkills = skillNames != [ ];
       in

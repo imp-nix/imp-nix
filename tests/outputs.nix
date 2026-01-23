@@ -6,7 +6,7 @@ let
   collectOutputs = imp.collectOutputs;
   buildOutputs = imp.buildOutputs;
 
-  testPath = ./fixtures/outputs-test/bundles;
+  testPath = ./fixtures/bundles/outputs/bundles;
 in
 {
   # Test basic output collection
@@ -160,7 +160,7 @@ in
   outputs."test single file path works" = {
     expr =
       let
-        collected = collectOutputs ./fixtures/outputs-test/bundles/overlay.nix;
+        collected = collectOutputs ./fixtures/bundles/outputs/bundles/overlay.nix;
         hasOverlay = collected ? "overlays.myOverlay";
       in
       hasOverlay;

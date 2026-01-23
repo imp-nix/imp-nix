@@ -226,25 +226,19 @@ let
   collectOutputs = import ./collect-outputs.nix;
 
   /**
-    Scan bundle directories for skills/ subdirectories.
-
-    Collects Claude Code skills from bundles. Each bundle can have a
-    skills/ directory containing skill folders. Returns a mapping of
-    skill names to their source paths.
+    Bundle utilities for collecting skills and config from bundle directories.
 
     # Example
 
     ```nix
-    imp.collectSkills [ ./bundles/my-bundle ./bundles/other-bundle ]
+    imp.bundles.collectSkills [ ./bundles ]
     # => { test-skill = /path/to/bundles/my-bundle/skills/test-skill; }
+
+    imp.bundles.collectConfig [ ./bundles ]
+    # => { "/path/to/bundles/lint" = { inner = ...; outer = ...; }; }
     ```
-
-    # Arguments
-
-    bundlePaths
-    : List of bundle directory paths to scan for skills.
   */
-  collectSkills = import ./collect-skills.nix;
+  bundles = import ./bundles;
 
   /**
     Build flake outputs from collected __outputs declarations.
@@ -384,7 +378,7 @@ let
               buildHosts
               collectOutputs
               buildOutputs
-              collectSkills
+              bundles
               formatInputs
               formatFlake
               collectAndFormatFlake

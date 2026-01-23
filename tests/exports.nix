@@ -6,7 +6,7 @@ let
   collectExports = imp.collectExports;
   buildExportSinks = imp.buildExportSinks;
 
-  testPath = ./fixtures/exports-test;
+  testPath = ./fixtures/collect/exports;
 in
 {
   # Test basic export collection
@@ -207,7 +207,7 @@ in
   exports."test single file path works" = {
     expr =
       let
-        collected = collectExports ./fixtures/exports-test/features/packages.nix;
+        collected = collectExports ./fixtures/collect/exports/features/packages.nix;
         hasPackages = collected ? "nixos.role.desktop.packages";
       in
       hasPackages;

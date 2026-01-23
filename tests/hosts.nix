@@ -5,7 +5,7 @@
 let
   collectHosts = imp.collectHosts;
 
-  testPath = ./fixtures/hosts-test;
+  testPath = ./fixtures/collect/hosts;
   hostsPath = testPath + "/hosts";
   registryPath = testPath;
 in

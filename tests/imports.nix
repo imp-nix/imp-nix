@@ -11,7 +11,7 @@ in
   imports."test extracts __module from registry wrapper function" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry-wrappers/basic.nix ];
+        modules = lit.imports [ ./fixtures/registry/wrappers/basic.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.basic;
@@ -21,7 +21,7 @@ in
   imports."test extracts __module from attrset with __module" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry-wrappers/attrset-with-module.nix ];
+        modules = lit.imports [ ./fixtures/registry/wrappers/attrset-with-module.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.attrsetModule;
@@ -31,7 +31,7 @@ in
   imports."test passes through standard modules unchanged" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry-wrappers/standard-module.nix ];
+        modules = lit.imports [ ./fixtures/registry/wrappers/standard-module.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.standard;
@@ -42,9 +42,9 @@ in
     expr =
       let
         modules = lit.imports [
-          ./fixtures/registry-wrappers/basic.nix
-          ./fixtures/registry-wrappers/standard-module.nix
-          ./fixtures/registry-wrappers/attrset-with-module.nix
+          ./fixtures/registry/wrappers/basic.nix
+          ./fixtures/registry/wrappers/standard-module.nix
+          ./fixtures/registry/wrappers/attrset-with-module.nix
         ];
         evaluated = lib.evalModules { inherit modules; };
       in
@@ -63,7 +63,7 @@ in
             default = "";
           };
         };
-        modules = [ optionsModule ] ++ lit.imports [ ./fixtures/registry-wrappers/config-module.nix ];
+        modules = [ optionsModule ] ++ lit.imports [ ./fixtures/registry/wrappers/config-module.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.fromRegistry;
@@ -73,7 +73,7 @@ in
   imports."test nested module with mkIf works" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry-wrappers/nested-module.nix ];
+        modules = lit.imports [ ./fixtures/registry/wrappers/nested-module.nix ];
         evaluated = lib.evalModules {
           inherit modules;
           specialArgs = { };
@@ -86,7 +86,7 @@ in
   imports."test nested module mkIf activates when enabled" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry-wrappers/nested-module.nix ] ++ [
+        modules = lit.imports [ ./fixtures/registry/wrappers/nested-module.nix ] ++ [
           { test.nested.enable = true; }
         ];
         evaluated = lib.evalModules { inherit modules; };
@@ -99,7 +99,7 @@ in
   imports."test accepts registry nodes with __path" = {
     expr =
       let
-        registry = registryLib.buildRegistry ./fixtures/registry-wrappers;
+        registry = registryLib.buildRegistry ./fixtures/registry/wrappers;
         modules = lit.imports [ registry.basic ];
         evaluated = lib.evalModules { inherit modules; };
       in

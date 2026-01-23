@@ -10,7 +10,7 @@ in
 {
   # collectInputs tests - collects __inputs from directory tree
   collectInputs."test collects inputs from directory tree" = {
-    expr = it.collectInputs ./fixtures/collect-inputs/outputs;
+    expr = it.collectInputs ./fixtures/collect/inputs/outputs;
     expected = {
       treefmt-nix = {
         url = "github:numtide/treefmt-nix";
@@ -32,7 +32,7 @@ in
   };
 
   collectInputs."test ignores files starting with underscore" = {
-    expr = builtins.attrNames (it.collectInputs ./fixtures/collect-inputs/outputs);
+    expr = builtins.attrNames (it.collectInputs ./fixtures/collect/inputs/outputs);
     expected = [
       "devenv"
       "home-manager"
@@ -41,7 +41,7 @@ in
   };
 
   collectInputs."test allows identical duplicate definitions" = {
-    expr = it.collectInputs ./fixtures/collect-inputs/duplicate;
+    expr = it.collectInputs ./fixtures/collect/inputs/duplicate;
     expected = {
       shared = {
         url = "github:owner/shared";
@@ -50,12 +50,12 @@ in
   };
 
   collectInputs."test throws on conflicting definitions" = {
-    expr = it.collectInputs ./fixtures/collect-inputs/conflict;
+    expr = it.collectInputs ./fixtures/collect/inputs/conflict;
     expectedError.type = "ThrownError";
   };
 
   collectInputs."test works on single file" = {
-    expr = it.collectInputs ./fixtures/collect-inputs/outputs/perSystem/formatter.nix;
+    expr = it.collectInputs ./fixtures/collect/inputs/outputs/perSystem/formatter.nix;
     expected = {
       treefmt-nix = {
         url = "github:numtide/treefmt-nix";
@@ -64,26 +64,26 @@ in
   };
 
   collectInputs."test returns empty for file without __inputs" = {
-    expr = it.collectInputs ./fixtures/collect-inputs/outputs/no-inputs.nix;
+    expr = it.collectInputs ./fixtures/collect/inputs/outputs/no-inputs.nix;
     expected = { };
   };
 
   collectInputs."test extracts __inputs from __functor pattern" = {
-    expr = it.collectInputs ./fixtures/registry-wrappers/basic.nix;
+    expr = it.collectInputs ./fixtures/registry/wrappers/basic.nix;
     expected = {
       example.url = "github:example/repo";
     };
   };
 
   collectInputs."test extracts __inputs from attrset with __module" = {
-    expr = it.collectInputs ./fixtures/registry-wrappers/attrset-with-module.nix;
+    expr = it.collectInputs ./fixtures/registry/wrappers/attrset-with-module.nix;
     expected = {
       static.url = "github:static/input";
     };
   };
 
   collectInputs."test collects from __functor pattern directory" = {
-    expr = builtins.attrNames (it.collectInputs ./fixtures/registry-wrappers);
+    expr = builtins.attrNames (it.collectInputs ./fixtures/registry/wrappers);
     expected = [
       "example"
       "foo"
@@ -95,8 +95,8 @@ in
 
   collectInputs."test accepts list of paths" = {
     expr = it.collectInputs [
-      ./fixtures/registry-wrappers/basic.nix
-      ./fixtures/collect-inputs/outputs/perSystem/formatter.nix
+      ./fixtures/registry/wrappers/basic.nix
+      ./fixtures/collect/inputs/outputs/perSystem/formatter.nix
     ];
     expected = {
       example.url = "github:example/repo";
@@ -210,7 +210,7 @@ in
     expr =
       let
         result = it.collectAndFormatFlake {
-          src = ./fixtures/collect-inputs/outputs;
+          src = ./fixtures/collect/inputs/outputs;
           coreInputs = {
             nixpkgs.url = "github:nixos/nixpkgs";
           };

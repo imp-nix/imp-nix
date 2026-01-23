@@ -9,12 +9,12 @@ in
 {
   # Tree tests
   tree."test fails if no lib has been set" = {
-    expr = it.tree ./fixtures/tree-test;
+    expr = it.tree ./fixtures/tree/basic;
     expectedError.type = "EvalError";
   };
 
   tree."test builds nested attrset from directory" = {
-    expr = lit.tree ./fixtures/tree-test;
+    expr = lit.tree ./fixtures/tree/basic;
     expected = {
       default = {
         isDefault = true;
@@ -44,24 +44,24 @@ in
   };
 
   tree."test can access nested attributes" = {
-    expr = (lit.tree ./fixtures/tree-test).packages.foo.name;
+    expr = (lit.tree ./fixtures/tree/basic).packages.foo.name;
     expected = "foo";
   };
 
   tree."test suffix_ escapes to attribute name" = {
-    expr = (lit.tree ./fixtures/tree-test).default;
+    expr = (lit.tree ./fixtures/tree/basic).default;
     expected = {
       isDefault = true;
     };
   };
 
   tree."test deeply nested access" = {
-    expr = (lit.tree ./fixtures/tree-test).modules.nested.deep.value;
+    expr = (lit.tree ./fixtures/tree/basic).modules.nested.deep.value;
     expected = "deep";
   };
 
   tree."test filter applies to tree" = {
-    expr = (lit.filter (lib.hasInfix "packages")).tree ./fixtures/tree-test;
+    expr = (lit.filter (lib.hasInfix "packages")).tree ./fixtures/tree/basic;
     expected = {
       packages = {
         foo = {
@@ -75,7 +75,7 @@ in
   };
 
   tree."test .d directories merge nix files as attrsets" = {
-    expr = lit.tree ./fixtures/tree-d-test;
+    expr = lit.tree ./fixtures/tree/fragments;
     expected = {
       apps = {
         myApp = {
@@ -100,7 +100,7 @@ in
 
   tree."test .d directories process files in sorted order" = {
     # 10-extras.nix comes after 00-core.nix, so its values take precedence
-    expr = (lit.tree ./fixtures/tree-d-test).packages.core;
+    expr = (lit.tree ./fixtures/tree/fragments).packages.core;
     expected = {
       name = "core-pkg"; # from 00-core
       version = "2.0"; # from 10-extras (recursiveUpdate adds this)
@@ -109,7 +109,7 @@ in
 
   tree."test .d and .nix with same name are merged" = {
     # packages.nix provides base, packages.d/ adds more - they should merge
-    expr = lit.tree ./fixtures/tree-conflict-test;
+    expr = lit.tree ./fixtures/tree/conflict;
     expected = {
       packages = {
         fromBase = {
@@ -123,7 +123,7 @@ in
   };
 
   tree."test .d directories work with mapTree (functions)" = {
-    expr = (lit.mapTree (f: f { prefix = "test"; })).tree ./fixtures/tree-d-functor;
+    expr = (lit.mapTree (f: f { prefix = "test"; })).tree ./fixtures/tree/fragments-functor;
     expected = {
       packages = {
         default = {
@@ -139,19 +139,19 @@ in
   tree."test .d with only shell files is skipped" = {
     # shellHook.d/ contains .sh files, not .nix - should be skipped entirely
     # (shell files are handled by imp.fragments for string concatenation)
-    expr = (lit.tree ./fixtures/tree-test) ? shellHook;
+    expr = (lit.tree ./fixtures/tree/basic) ? shellHook;
     expected = false; # shellHook.d should not create a shellHook attr (no .nix files)
   };
 
   tree."test collision between foo.nix and foo/ throws error" = {
-    expr = lit.tree ./fixtures/tree-collision-test;
+    expr = lit.tree ./fixtures/tree/collision;
     expectedError.type = "ThrownError";
     expectedError.msg = ".*collision for attribute 'foo' from multiple sources.*";
   };
 
   tree."test .d works for arbitrary names (not just flake outputs)" = {
     # myCustom.d/ is not a known flake output name, but should still work
-    expr = lit.tree ./fixtures/tree-generic-d;
+    expr = lit.tree ./fixtures/tree/generic-fragments;
     expected = {
       myCustom = {
         first = true;
@@ -166,7 +166,7 @@ in
 
   # mapTree tests
   mapTree."test transforms imported values" = {
-    expr = (lit.mapTree (x: x // { extra = true; })).tree ./fixtures/tree-test/packages;
+    expr = (lit.mapTree (x: x // { extra = true; })).tree ./fixtures/tree/basic/packages;
     expected = {
       foo = {
         name = "foo";
@@ -182,7 +182,7 @@ in
   mapTree."test multiple mapTrees compose" = {
     expr =
       ((lit.mapTree (x: x // { first = true; })).mapTree (x: x // { second = true; })).tree
-        ./fixtures/tree-test/packages;
+        ./fixtures/tree/basic/packages;
     expected = {
       foo = {
         name = "foo";
@@ -199,14 +199,14 @@ in
 
   # configTree tests - builds modules where path = option path
   configTree."test fails if no lib has been set" = {
-    expr = it.configTree ./fixtures/config-tree;
+    expr = it.configTree ./fixtures/config-tree/basic;
     expectedError.type = "EvalError";
   };
 
   configTree."test builds nested config from directory structure" = {
     expr =
       let
-        module = lit.configTree ./fixtures/config-tree;
+        module = lit.configTree ./fixtures/config-tree/basic;
         mockArgs = {
           config = { };
           lib = lib;
@@ -242,7 +242,7 @@ in
   configTree."test can access deeply nested config values" = {
     expr =
       let
-        module = lit.configTree ./fixtures/config-tree;
+        module = lit.configTree ./fixtures/config-tree/basic;
         mockArgs = {
           config = { };
           lib = lib;
@@ -257,7 +257,7 @@ in
   configTree."test directory with default.nix is treated as single value" = {
     expr =
       let
-        module = lit.configTree ./fixtures/config-tree;
+        module = lit.configTree ./fixtures/config-tree/basic;
         mockArgs = {
           config = { };
           lib = lib;
@@ -275,7 +275,7 @@ in
   configTree."test filter applies to configTree" = {
     expr =
       let
-        module = (lit.filter (lib.hasInfix "programs")).configTree ./fixtures/config-tree;
+        module = (lit.filter (lib.hasInfix "programs")).configTree ./fixtures/config-tree/basic;
         mockArgs = {
           config = { };
           lib = lib;
@@ -302,7 +302,7 @@ in
   configTreeWith."test passes extra args to config files" = {
     expr =
       let
-        module = lit.configTreeWith { customArg = "hello"; } ./fixtures/config-tree-extra;
+        module = lit.configTreeWith { customArg = "hello"; } ./fixtures/config-tree/extra;
         mockArgs = {
           config = { };
           lib = lib;
@@ -322,7 +322,7 @@ in
   configTree."test skips default.nix at root level" = {
     expr =
       let
-        module = lit.configTree ./fixtures/config-tree-with-default;
+        module = lit.configTree ./fixtures/config-tree/with-default;
         mockArgs = {
           config = { };
           lib = lib;
@@ -344,7 +344,7 @@ in
 
   # mergeConfigTrees tests - merge multiple trees with later overriding earlier
   mergeConfigTrees."test fails if no lib has been set" = {
-    expr = it.mergeConfigTrees [ ./fixtures/mixed-tree/base ];
+    expr = it.mergeConfigTrees [ ./fixtures/config-tree/mixed/base ];
     expectedError.type = "EvalError";
   };
 
@@ -352,8 +352,8 @@ in
     expr =
       let
         module = lit.mergeConfigTrees [
-          ./fixtures/mixed-tree/base
-          ./fixtures/mixed-tree/extended
+          ./fixtures/config-tree/mixed/base
+          ./fixtures/config-tree/mixed/extended
         ];
         mockArgs = {
           config = { };
@@ -397,7 +397,7 @@ in
   mergeConfigTrees."test single tree works like configTree" = {
     expr =
       let
-        module = lit.mergeConfigTrees [ ./fixtures/mixed-tree/base ];
+        module = lit.mergeConfigTrees [ ./fixtures/config-tree/mixed/base ];
         mockArgs = {
           config = { };
           lib = lib;
@@ -431,8 +431,8 @@ in
       let
         # Reverse order - base should override extended
         module = lit.mergeConfigTrees [
-          ./fixtures/mixed-tree/extended
-          ./fixtures/mixed-tree/base
+          ./fixtures/config-tree/mixed/extended
+          ./fixtures/config-tree/mixed/base
         ];
         mockArgs = {
           config = { };
@@ -453,8 +453,8 @@ in
     expr =
       let
         module = lit.mergeConfigTrees { strategy = "override"; } [
-          ./fixtures/mixed-tree/base
-          ./fixtures/mixed-tree/extended
+          ./fixtures/config-tree/mixed/base
+          ./fixtures/config-tree/mixed/extended
         ];
         mockArgs = {
           config = { };
@@ -491,8 +491,8 @@ in
           };
 
         mergeTree = lit.mergeConfigTrees { strategy = "merge"; } [
-          ./fixtures/merge-strategy/base
-          ./fixtures/merge-strategy/extended
+          ./fixtures/config-tree/merge-strategy/base
+          ./fixtures/config-tree/merge-strategy/extended
         ];
 
         evaluated = lib.evalModules {
@@ -531,8 +531,8 @@ in
           };
 
         overrideTree = lit.mergeConfigTrees { strategy = "override"; } [
-          ./fixtures/merge-strategy/base
-          ./fixtures/merge-strategy/extended
+          ./fixtures/config-tree/merge-strategy/base
+          ./fixtures/config-tree/merge-strategy/extended
         ];
 
         evaluated = lib.evalModules {
@@ -563,7 +563,7 @@ in
               };
             }
             [
-              ./fixtures/config-tree-extra
+              ./fixtures/config-tree/extra
             ];
         mockArgs = {
           config = { };
