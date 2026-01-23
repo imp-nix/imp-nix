@@ -24,7 +24,7 @@ methods.sections = [
 ];
 ```
 
-`options.md` renders NixOS-style module options. The options module (`src/options-schema.nix`) is evaluated, converted to JSON via `docgen.lib.optionsToJson`, then formatted by nixdoc's `options` subcommand.
+`options.md` renders NixOS-style module options. The options module (`src/flake/options-schema.nix`) is evaluated, converted to JSON via `docgen.lib.optionsToJson`, then formatted by nixdoc's `options` subcommand.
 
 `files.md` extracts file-level doc-comments (the `# comment` block at the top of a file before any code). Useful for describing what each file does at a glance.
 
@@ -39,7 +39,7 @@ imp.docs = {
   siteDir = ./docs;
   name = "imp";
   anchorPrefix = "imp";
-  optionsModule = ./src/options-schema.nix;
+  optionsModule = ./src/flake/options-schema.nix;
   optionsPrefix = "imp.";
 };
 ```

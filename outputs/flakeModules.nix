@@ -3,5 +3,5 @@
 */
 { self, ... }:
 {
-  default = self + "/src/flake-module.nix";
+  default = self + "/src/flake/flake-module.nix";
 }

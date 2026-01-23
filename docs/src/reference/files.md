@@ -35,7 +35,7 @@ Internal utility functions for imp.
 
 ## Import & Collection
 
-### collect.nix
+### collect/default.nix
 
 File collection and filtering logic.
 
@@ -45,7 +45,7 @@ This module handles:
 - Filter composition and application
 - Path normalization (absolute to relative)
 
-### tree.nix
+### tree/default.nix
 
 Builds nested attrset from directory structure.
 
@@ -114,7 +114,7 @@ Or with transform:
 imp.treeWith lib (f: f args) ./outputs
 ```
 
-### fragments.nix
+### tree/fragments.nix
 
 Fragment collection and composition for `.d` directories.
 
@@ -167,7 +167,7 @@ pkgs.mkShell {
 
 ## Config Trees
 
-### config-tree.nix
+### tree/config-tree.nix
 
 Builds a NixOS/Home Manager module where directory structure = option paths.
 
@@ -222,7 +222,7 @@ With extra args:
 ((inputs.imp.withLib lib).configTreeWith { myArg = "value"; } ./home)
 ```
 
-### merge-config-trees.nix
+### tree/merge-config-trees.nix
 
 Merges multiple config trees into a single NixOS/Home Manager module.
 
@@ -319,7 +319,7 @@ Directories have `__path` so they work with `imp`.
 
 ## Export Sinks
 
-### collect-exports.nix
+### collect/collect-exports.nix
 
 Collects `__exports` declarations from directory trees.
 
@@ -394,7 +394,7 @@ buildExportSinks {
 
 ## Output Collection
 
-### collect-outputs.nix
+### collect/collect-outputs.nix
 
 Collects `__outputs` declarations from directory trees.
 
@@ -476,7 +476,7 @@ buildOutputs {
 
 ## Host Configuration
 
-### collect-hosts.nix
+### collect/collect-hosts.nix
 
 Scans directories for `__host` declarations and collects host metadata.
 
@@ -549,12 +549,12 @@ buildHosts :: {
 #### Module Assembly Order
 
 1. Merged config tree from `bases` + `config` paths
-2. `home-manager.nixosModules.home-manager`
-3. Resolved sink modules from `sinks`
-4. Home Manager integration module (if `user` set)
-5. Extra modules from `modules`
-6. `extraConfig` module (if present)
-7. `{ system.stateVersion = ...; }`
+1. `home-manager.nixosModules.home-manager`
+1. Resolved sink modules from `sinks`
+1. Home Manager integration module (if `user` set)
+1. Extra modules from `modules`
+1. `extraConfig` module (if present)
+1. `{ system.stateVersion = ...; }`
 
 #### Path Resolution
 
@@ -604,19 +604,19 @@ buildHosts {
 
 ## Flake Integration
 
-### flake-module.nix
+### flake/flake-module.nix
 
 flake-parts module, defines `imp.*` options.
 
-### options-schema.nix
+### flake/options-schema.nix
 
 Shared options schema for imp.\* options.
 
-### collect-inputs.nix
+### collect/collect-inputs.nix
 
 `__inputs` collection from flake inputs.
 
-### format-flake.nix
+### flake/format-flake.nix
 
 Formats flake inputs and generates flake.nix content.
 Standalone implementation - no nixpkgs dependency, only builtins.
