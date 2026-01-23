@@ -240,6 +240,12 @@ in
           # [ ./nix/bundles ./extra-bundles ]
         '';
       };
+
+      skills = {
+        enable = mkEnableOption "Claude Code skill symlinks from bundles" // {
+          default = true;
+        };
+      };
     };
 
     impShell = {

@@ -172,7 +172,7 @@ in
           ${coreInputsHeader}
           nixpkgs.url = "github:nixos/nixpkgs";
         };
-        outputs = inputs: import ./outputs.nix inputs;
+        outputs = inputs: import ./nix/flake inputs;
       }
     '';
   };
