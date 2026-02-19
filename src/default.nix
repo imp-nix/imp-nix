@@ -1,6 +1,15 @@
 /**
   Entry point for imp - directory-based Nix imports.
 
+  Philosophy:
+  - The filesystem is the source of truth.
+  - Add/remove files to change behavior; avoid manual import wiring.
+  - Keep module intent next to implementation via special attrs
+    (`__inputs`, `__outputs`, `__exports`, `__host`).
+
+  In flake evaluation, only git-visible files are scanned. New files should
+  be tracked before expecting imp to discover them.
+
   This module exports the main imp API including:
   - Chainable filtering and transformation methods
   - Tree building from directory structure

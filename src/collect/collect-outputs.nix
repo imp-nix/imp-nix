@@ -7,6 +7,16 @@
   # Output Syntax
 
   ```nix
+  # Nested paths (preferred for tooling/static analysis)
+  {
+    __outputs.perSystem.packages.lint = { pkgs, ... }: pkgs.hello;
+  }
+
+  # Flat string key form also works
+  {
+    __outputs."perSystem.packages.lint" = { pkgs, ... }: pkgs.hello;
+  }
+
   # perSystem outputs (receive { pkgs, lib, system, ... })
   {
     __outputs.perSystem.packages.lint = { pkgs, ... }: pkgs.writeShellScript "lint" "...";
@@ -35,6 +45,10 @@
 
   - `merge`: Deep merge via `lib.recursiveUpdate` (default for attrset outputs)
   - `override`: Last writer wins (default for non-attrset outputs)
+
+  Function-valued files are collected as deferred functors and evaluated later
+  with full flake/perSystem args, so collection stays static while execution
+  remains context-aware.
 
   # Arguments
 

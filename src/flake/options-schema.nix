@@ -268,7 +268,15 @@ in
 
           The __host schema declares system, stateVersion, base config trees,
           export sinks, extra modules, and optional Home Manager integration.
-          See the Host Declarations concept documentation for the full schema.
+
+          Common fields:
+          - system: target platform (for example, "x86_64-linux")
+          - stateVersion: value assigned to system.stateVersion
+          - bases: registry paths to config-tree roots
+          - sinks / hmSinks: export sink paths to import
+          - modules: extra modules (list or resolver function)
+          - user: Home Manager user name (enables HM wiring)
+          - config / extraConfig: host-local config tree and escape hatch module
         '';
       };
 

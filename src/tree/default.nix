@@ -6,6 +6,12 @@
            `_foo.nix` | `_foo/`          -> ignored
            `foo.d/`                      -> fragment directory (merged attrsets)
 
+  Directory modules:
+    A directory with `default.nix` is treated as a leaf module. imp imports
+    that directory as a single unit and does not recurse into sibling files.
+    This gives directories a clean external interface while allowing internal
+    helper files to stay private.
+
   Fragment directories (`*.d/`):
     Any `foo.d/` directory is processed as a fragment directory. The `.nix`
     files inside are imported in sorted order (00-base.nix before 10-extra.nix)

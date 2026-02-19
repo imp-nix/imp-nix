@@ -12,7 +12,6 @@
       ...
     }:
     {
-      docs = self'.packages.docs;
       nix-unit =
         pkgs.runCommand "nix-unit-tests"
           {

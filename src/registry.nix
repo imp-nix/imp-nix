@@ -40,6 +40,8 @@
   ```
 
   Directories have `__path` so they work with `imp`.
+  In the flake module, `imp.registry.modules` can inject/override entries,
+  letting external inputs or hand-picked modules live at registry paths.
 */
 {
   lib,

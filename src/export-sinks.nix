@@ -4,6 +4,10 @@
   Takes `collectExports` output and produces usable Nix values (modules or
   attrsets) by merging contributions according to their strategies.
 
+  Export sinks are "push-based" composition: feature modules declare where
+  their config should land, and consumers import the merged sink instead of
+  listing every feature explicitly.
+
   # Merge Strategies
 
   - `merge`: Deep merge via `lib.recursiveUpdate` (last wins for primitives)
@@ -11,6 +15,11 @@
   - `list-append`: Concatenate lists (errors on non-lists)
   - `mkMerge`: Module functions become `{ imports = [...]; }`;
     plain attrsets use `lib.mkMerge`
+
+  Strategy resolution:
+  - explicit per-export `strategy` wins
+  - otherwise first matching `sinkDefaults` pattern wins
+  - otherwise falls back to `override`
 
   # Example
 

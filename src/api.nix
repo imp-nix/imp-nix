@@ -110,7 +110,7 @@ in
 
     ```nix
     # Import markdown files instead of nix files
-    imp.initFilter (lib.hasSuffix ".md") ./docs
+    imp.initFilter (lib.hasSuffix ".md") ./notes
     ```
 
     # Arguments
@@ -413,6 +413,14 @@ in
 
     This allows registry modules to declare `__inputs` and `__overlays`
     without polluting the module system.
+
+    Wrapper detection heuristic:
+    - treated as a registry wrapper when function args include flake-level
+      fields (`inputs`, `exports`, `registry`)
+    - not treated as wrapper when module args (`config`, `pkgs`) are present
+
+    For `__functor` registry files this yields two-stage evaluation:
+    wrapper -> `{ __module = ...; }` -> final module.
 
     # Example
 

@@ -13,9 +13,6 @@
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
-
-    docgen.url = "github:imp-nix/docgen-rs";
-    docgen.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -55,7 +52,6 @@
 
       imports = [
         ./src/flake/flake-module.nix
-        inputs.docgen.flakeModules.docs
       ];
 
       imp = {
@@ -68,16 +64,6 @@
 
         # imp-nix uses a custom flake.nix with direct exports, so disable auto-generation
         flakeFile.enable = false;
-      };
-
-      docs = {
-        manifest = ./docs/manifest.nix;
-        srcDir = ./src;
-        siteDir = ./docs;
-        name = "imp";
-        anchorPrefix = "imp";
-        optionsModule = ./src/flake/options-schema.nix;
-        optionsPrefix = "imp.";
       };
     };
 }

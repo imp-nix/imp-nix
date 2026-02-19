@@ -1,25 +1,5 @@
 {
   "nodes": {
-    "docgen": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1769038144,
-        "narHash": "sha256-gEINGwiK2TOhm2VHfSLRWIKZKXtZqMNbSBOedxqWLdA=",
-        "owner": "imp-nix",
-        "repo": "docgen-rs",
-        "rev": "baa98a704a54fd6646986a544212d491ca17c6ec",
-        "type": "github"
-      },
-      "original": {
-        "owner": "imp-nix",
-        "repo": "docgen-rs",
-        "type": "github"
-      }
-    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -117,7 +97,6 @@
     },
     "root": {
       "inputs": {
-        "docgen": "docgen",
         "flake-parts": "flake-parts",
         "nix-unit": "nix-unit",
         "nixpkgs": "nixpkgs",

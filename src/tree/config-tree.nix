@@ -7,6 +7,9 @@
   - `programs/git.nix` -> `{ programs.git = <result>; }`
   - `services/nginx/default.nix` -> `{ services.nginx = <result>; }`
 
+  Treat the directory as a table of contents for your configuration:
+  if `programs/git.nix` exists, `programs.git` is defined.
+
   # Example
 
   Directory structure:
