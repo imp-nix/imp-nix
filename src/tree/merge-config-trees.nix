@@ -3,8 +3,8 @@
 
   Supports two merge strategies:
 
-  - `override` (default): Later trees override earlier (`lib.recursiveUpdate`)
-  - `merge`: Use module system's `mkMerge` for proper option merging
+  * `override` (default): Later trees override earlier (`lib.recursiveUpdate`)
+  * `merge`: Use module system's `mkMerge` for proper option merging
 
   This enables composable features where one extends another:
 
@@ -42,9 +42,9 @@
   With `override`: later values completely replace earlier ones.
   With `merge`: options combine according to module system rules:
 
-  - lists concatenate
-  - strings may error (use `mkForce`/`mkDefault` to control)
-  - nested attrs merge recursively
+  * lists concatenate
+  * strings may error (use `mkForce`/`mkDefault` to control)
+  * nested attrs merge recursively
 */
 {
   lib,

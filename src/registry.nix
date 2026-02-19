@@ -56,7 +56,7 @@ let
 
     # Arguments
 
-    - `root` (path): Root directory path to scan.
+    * `root` (path): Root directory path to scan.
   */
   buildRegistry =
     root:

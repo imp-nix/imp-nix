@@ -7,8 +7,8 @@
 
   This enables drop-in bundles to contribute to multiple output types from a
   single location. Merge strategy defaults are:
-  - single contributor: `override`
-  - multiple contributors: `merge`
+  * single contributor: `override`
+  * multiple contributors: `merge`
 
   Formatter composition is handled in `flake/flake-module.nix`, where
   `formatter.d/` fragments and `__outputs.perSystem.formatter` values are
@@ -39,8 +39,8 @@
 
   # Arguments
 
-  - `lib` (attrset): nixpkgs lib for merge operations.
-  - `collected` (attrset): Output from `collectOutputs`.
+  * `lib` (attrset): nixpkgs lib for merge operations.
+  * `collected` (attrset): Output from `collectOutputs`.
 */
 {
   lib,

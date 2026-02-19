@@ -14,14 +14,14 @@
       systems.nix          -> systems (list of supported systems)
 
   Files receive standardized arguments matching flake-parts conventions:
-    - perSystem files: { pkgs, lib, system, self, self', inputs, inputs', config, ... }
-    - flake files: { lib, self, inputs, config, ... }
+    * perSystem files: { pkgs, lib, system, self, self', inputs, inputs', config, ... }
+    * flake files: { lib, self, inputs, config, ... }
 
   The module can additionally compose:
-  - `__outputs` declarations (portable bundles and drop-in output producers)
-  - `__exports` sinks (push-based module composition)
-  - `__host` declarations (auto-generated nixosConfigurations)
-  - `__inputs` declarations (flake.nix generation, when enabled)
+  * `__outputs` declarations (portable bundles and drop-in output producers)
+  * `__exports` sinks (push-based module composition)
+  * `__host` declarations (auto-generated nixosConfigurations)
+  * `__inputs` declarations (flake.nix generation, when enabled)
 */
 {
   lib,

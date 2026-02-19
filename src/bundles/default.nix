@@ -12,11 +12,11 @@
     Collects bundle-local configuration from two locations:
 
     Inner config (inside bundle, owned by bundle/submodule):
-    - `<bundle>/config.nix`
-    - `<bundle>/config/default.nix`
+    * `<bundle>/config.nix`
+    * `<bundle>/config/default.nix`
 
     Outer config (sibling to bundle, owned by parent project):
-    - `<bundle>.config.nix`
+    * `<bundle>.config.nix`
 
     Outer config is useful when bundles are git submodules - the parent
     project can override/extend the bundle's config without modifying

@@ -43,8 +43,8 @@
 
   # Merge Strategies
 
-  - `merge`: Deep merge via `lib.recursiveUpdate` (default for attrset outputs)
-  - `override`: Last writer wins (default for non-attrset outputs)
+  * `merge`: Deep merge via `lib.recursiveUpdate` (default for attrset outputs)
+  * `override`: Last writer wins (default for non-attrset outputs)
 
   Function-valued files are collected as deferred functors and evaluated later
   with full flake/perSystem args, so collection stays static while execution

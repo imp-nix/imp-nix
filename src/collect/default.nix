@@ -2,10 +2,10 @@
   File collection and filtering logic.
 
   This module handles:
-  - Recursive file discovery from paths
-  - Filter composition and application
-  - Path normalization (absolute to relative)
-  - Root-relative filtering across multiple roots for stable predicates
+  * Recursive file discovery from paths
+  * Filter composition and application
+  * Path normalization (absolute to relative)
+  * Root-relative filtering across multiple roots for stable predicates
 
   Note for flakes: newly created files are not visible to evaluation until
   they are git-visible. If a file is unexpectedly missing from imp results,

@@ -27,8 +27,8 @@
 
   Strings in `bases`, `sinks`, `hmSinks`, `modules` resolve as:
 
-  - `"hosts.shared.base"` -> `registry.hosts.shared.base`
-  - `"@nixos-wsl.nixosModules.default"` -> `inputs.nixos-wsl.nixosModules.default`
+  * `"hosts.shared.base"` -> `registry.hosts.shared.base`
+  * `"@nixos-wsl.nixosModules.default"` -> `inputs.nixos-wsl.nixosModules.default`
 
   # Modules as Function
 

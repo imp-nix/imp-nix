@@ -4,12 +4,12 @@
   This module defines all chainable methods available on the imp object.
   Methods are organized into categories:
 
-  - Filtering: `filter`, `filterNot`, `match`, `matchNot`, `initFilter`
-  - Transforming: `map`, `mapTree`
-  - Tree building: `tree`, `treeWith`, `configTree`, `configTreeWith`
-  - Fragments: `fragments`, `fragmentsWith`
-  - File lists: `leaves`, `files`, `pipeTo`
-  - Extending: `addRoot`, `addAPI`, `withLib`, `new`
+  * Filtering: `filter`, `filterNot`, `match`, `matchNot`, `initFilter`
+  * Transforming: `map`, `mapTree`
+  * Tree building: `tree`, `treeWith`, `configTree`, `configTreeWith`
+  * Fragments: `fragments`, `fragmentsWith`
+  * File lists: `leaves`, `files`, `pipeTo`
+  * Extending: `addRoot`, `addAPI`, `withLib`, `new`
 */
 let
   utils = import ./lib.nix;
@@ -415,9 +415,9 @@ in
     without polluting the module system.
 
     Wrapper detection heuristic:
-    - treated as a registry wrapper when function args include flake-level
+    * treated as a registry wrapper when function args include flake-level
       fields (`inputs`, `exports`, `registry`)
-    - not treated as wrapper when module args (`config`, `pkgs`) are present
+    * not treated as wrapper when module args (`config`, `pkgs`) are present
 
     For `__functor` registry files this yields two-stage evaluation:
     wrapper -> `{ __module = ...; }` -> final module.
@@ -508,10 +508,10 @@ in
     and composed together. Files are processed in order (00-base before 10-extra).
 
     Returns an attrset with multiple access methods:
-    - `.list` - raw list of fragment contents
-    - `.asString` - fragments concatenated with newlines (for shell scripts)
-    - `.asList` - fragments flattened (for lists of packages)
-    - `.asAttrs` - fragments merged (for attrsets)
+    * `.list` - raw list of fragment contents
+    * `.asString` - fragments concatenated with newlines (for shell scripts)
+    * `.asList` - fragments flattened (for lists of packages)
+    * `.asAttrs` - fragments merged (for attrsets)
 
     Note: For known flake output directories (packages.d, devShells.d, etc.),
     tree.nix auto-merges fragments. Use `imp.fragments` for other `.d` dirs

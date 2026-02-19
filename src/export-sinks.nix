@@ -10,16 +10,16 @@
 
   # Merge Strategies
 
-  - `merge`: Deep merge via `lib.recursiveUpdate` (last wins for primitives)
-  - `override`: Last writer completely replaces earlier values
-  - `list-append`: Concatenate lists (errors on non-lists)
-  - `mkMerge`: Module functions become `{ imports = [...]; }`;
+  * `merge`: Deep merge via `lib.recursiveUpdate` (last wins for primitives)
+  * `override`: Last writer completely replaces earlier values
+  * `list-append`: Concatenate lists (errors on non-lists)
+  * `mkMerge`: Module functions become `{ imports = [...]; }`;
     plain attrsets use `lib.mkMerge`
 
   Strategy resolution:
-  - explicit per-export `strategy` wins
-  - otherwise first matching `sinkDefaults` pattern wins
-  - otherwise falls back to `override`
+  * explicit per-export `strategy` wins
+  * otherwise first matching `sinkDefaults` pattern wins
+  * otherwise falls back to `override`
 
   # Example
 
@@ -39,10 +39,10 @@
 
   # Arguments
 
-  - `lib` (attrset): nixpkgs lib for merge operations.
-  - `collected` (attrset): Output from `collectExports`.
-  - `sinkDefaults` (attrset): Glob patterns to default strategies (e.g., `{ "nixos.*" = "merge"; }`).
-  - `enableDebug` (bool): Include `__meta` with contributor info (default: true).
+  * `lib` (attrset): nixpkgs lib for merge operations.
+  * `collected` (attrset): Output from `collectExports`.
+  * `sinkDefaults` (attrset): Glob patterns to default strategies (e.g., `{ "nixos.*" = "merge"; }`).
+  * `enableDebug` (bool): Include `__meta` with contributor info (default: true).
 */
 {
   lib,

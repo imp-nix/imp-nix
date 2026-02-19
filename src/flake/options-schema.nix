@@ -3,8 +3,8 @@
 
   This is a standard NixOS-style module defining imp.* options.
   Used by:
-  - flake-module.nix (imports this module)
-  - Documentation generation (evaluated standalone)
+  * flake-module.nix (imports this module)
+  * Documentation generation (evaluated standalone)
 */
 { lib, ... }:
 let
@@ -136,10 +136,10 @@ in
 
           Patterns use glob syntax where * matches any suffix.
           Available strategies:
-          - "merge": Deep merge (lib.recursiveUpdate)
-          - "override": Last writer wins
-          - "list-append": Concatenate lists
-          - "mkMerge": Use lib.mkMerge for module semantics
+          * "merge": Deep merge (lib.recursiveUpdate)
+          * "override": Last writer wins
+          * "list-append": Concatenate lists
+          * "mkMerge": Use lib.mkMerge for module semantics
         '';
         example = literalExpression ''
           {
@@ -157,8 +157,8 @@ in
           Include __meta with contributor info in sinks.
 
           When enabled, each sink includes:
-          - __meta.contributors: list of source paths
-          - __meta.strategy: effective merge strategy
+          * __meta.contributors: list of source paths
+          * __meta.strategy: effective merge strategy
         '';
       };
     };
@@ -270,13 +270,13 @@ in
           export sinks, extra modules, and optional Home Manager integration.
 
           Common fields:
-          - system: target platform (for example, "x86_64-linux")
-          - stateVersion: value assigned to system.stateVersion
-          - bases: registry paths to config-tree roots
-          - sinks / hmSinks: export sink paths to import
-          - modules: extra modules (list or resolver function)
-          - user: Home Manager user name (enables HM wiring)
-          - config / extraConfig: host-local config tree and escape hatch module
+          * system: target platform (for example, "x86_64-linux")
+          * stateVersion: value assigned to system.stateVersion
+          * bases: registry paths to config-tree roots
+          * sinks / hmSinks: export sink paths to import
+          * modules: extra modules (list or resolver function)
+          * user: Home Manager user name (enables HM wiring)
+          * config / extraConfig: host-local config tree and escape hatch module
         '';
       };
 

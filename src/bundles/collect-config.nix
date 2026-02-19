@@ -6,20 +6,20 @@
   For each bundle directory, checks for:
 
   Inner config (inside bundle, owned by bundle/submodule):
-  - <bundle>/config.nix
-  - <bundle>/config/default.nix
+  * <bundle>/config.nix
+  * <bundle>/config/default.nix
 
   Outer config (sibling to bundle, owned by parent project):
-  - <bundle>.config.nix
+  * <bundle>.config.nix
 
   Outer config is useful when bundles are git submodules - the parent
   project can override/extend the bundle's config without modifying
   the submodule.
 
   Config files can be:
-  - Static attrsets: `{ key = "value"; }`
-  - Functions receiving args: `{ pkgs, ... }: { tools = [ pkgs.jq ]; }`
-  - Functors: `{ __functor = _: { pkgs, ... }: { ... }; }`
+  * Static attrsets: `{ key = "value"; }`
+  * Functions receiving args: `{ pkgs, ... }: { tools = [ pkgs.jq ]; }`
+  * Functors: `{ __functor = _: { pkgs, ... }: { ... }; }`
 
   Config values are returned as-is (not evaluated). Evaluation and
   merging (outer overrides inner) happens at bundle evaluation time.

@@ -2,16 +2,16 @@
   Fragment collection and composition for `.d` directories.
 
   Follows the `.d` convention (like conf.d, init.d) where:
-  - `foo.d/` contains fragments that compose into `foo`
-  - Fragments are sorted by filename for deterministic ordering
-  - Composition strategy depends on content type
+  * `foo.d/` contains fragments that compose into `foo`
+  * Fragments are sorted by filename for deterministic ordering
+  * Composition strategy depends on content type
 
   # Supported fragment types
 
-  - `*.nix` - Nix expressions (imported directly)
-  - `*.sh` - Shell scripts (read as strings)
-  - `<fragment root>/default.nix` - Directory with default.nix entry point
-  - `<fragment root>/package.nix` - Fallback for default.nix
+  * `*.nix` - Nix expressions (imported directly)
+  * `*.sh` - Shell scripts (read as strings)
+  * `<fragment root>/default.nix` - Directory with default.nix entry point
+  * `<fragment root>/package.nix` - Fallback for default.nix
 
   Directory fragments may be useful for bundling resources.
 
@@ -79,15 +79,15 @@ let
 
     # Arguments
 
-    - `dir` (path): Directory ending in .d containing fragments
+    * `dir` (path): Directory ending in .d containing fragments
 
     # Returns
 
     Attrset with:
-    - `list`: List of fragment contents in sorted order
-    - `asString`: Fragments concatenated with newlines
-    - `asList`: Fragments flattened (for lists of lists)
-    - `asAttrs`: Fragments merged (for attrsets)
+    * `list`: List of fragment contents in sorted order
+    * `asString`: Fragments concatenated with newlines
+    * `asList`: Fragments flattened (for lists of lists)
+    * `asAttrs`: Fragments merged (for attrsets)
 
     Returns empty results if directory doesn't exist.
   */
@@ -161,8 +161,8 @@ let
 
     # Arguments
 
-    - `args` (attrset): Arguments to pass to each fragment function
-    - `dir` (path): Directory containing fragments
+    * `args` (attrset): Arguments to pass to each fragment function
+    * `dir` (path): Directory containing fragments
 
     # Returns
 
