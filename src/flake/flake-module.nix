@@ -24,6 +24,11 @@
   * `__exports` sinks (push-based module composition)
   * `__host` declarations (auto-generated nixosConfigurations)
   * `__inputs` declarations (flake.nix generation, when enabled)
+
+  `__outputs.perSystemTransforms.*` supports both direct transforms and
+  perSystem-arg builder transforms. Builders are evaluated once per-system with
+  the same args model as other perSystem outputs, then applied in the post-merge
+  phase against `config.allSystems`.
 */
 {
   lib,

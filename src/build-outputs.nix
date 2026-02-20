@@ -11,6 +11,14 @@
   * single contributor: `override`
   * multiple contributors: `merge`
 
+  `perSystemTransforms.*` accepts two transform forms:
+  * section transform: `section -> section`
+  * perSystem-arg builder: `{ pkgs, system, ... } -> (section -> section)`
+
+  For multiple transform contributors on the same key:
+  * `merge`/`pipe`: compose in source-path order
+  * `override`: keep the last transform contributor
+
   Formatter composition is handled in `flake/flake-module.nix`, where
   `formatter.d/` fragments and `__outputs.perSystem.formatter` values are
   combined before treefmt evaluation.

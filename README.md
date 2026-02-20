@@ -50,6 +50,28 @@ all modules are merged:
 }
 ```
 
+Transforms can also be defined as per-system arg builders when they need
+shared helpers from `imp.args`:
+
+```nix
+# flake.nix
+{
+  imp = {
+    src = ./nix/outputs;
+    args.nciLib = import ./nix/nci/lib.nix;
+  };
+}
+
+# workspace output file
+{
+  __outputs.perSystemTransforms.devShells = { nciLib, ... }:
+    nciLib.mkWorkspaceShellTransform {
+      workspace = "my-workspace";
+      aliases = [ "default" ];
+    };
+}
+```
+
 ## NixOS configurations
 
 For system configuration, imp adds registries, export sinks, and host declarations:

@@ -51,6 +51,7 @@ in
 
         Flake files receive: { lib, self, inputs, config, imp, registry, ... }
         perSystem files receive: { pkgs, lib, system, self, self', inputs, inputs', config, imp, registry, ... }
+        __outputs.perSystemTransforms builder functions receive the same perSystem args.
 
         User-provided args take precedence over defaults.
       '';

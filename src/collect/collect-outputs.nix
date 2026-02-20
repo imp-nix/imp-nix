@@ -33,6 +33,15 @@
       builtins.mapAttrs (_: shell: shell.overrideAttrs (_: { })) finalShells;
   }
 
+  # perSystem-arg builder form for transforms
+  {
+    __outputs.perSystemTransforms.devShells = { nciLib, ... }:
+      nciLib.mkWorkspaceShellTransform {
+        workspace = "my-workspace";
+        aliases = [ "default" ];
+      };
+  }
+
   # Top-level outputs
   {
     __outputs.overlays.myOverlay = final: prev: { ... };
@@ -52,6 +61,10 @@
 
   * `merge`: Deep merge via `lib.recursiveUpdate` (default for attrset outputs)
   * `override`: Last writer wins (default for non-attrset outputs)
+
+  For `__outputs.perSystemTransforms.*` specifically:
+  * `merge` and `pipe` compose transforms in source-path order
+  * `override` keeps only the last transform contributor
 
   Function-valued files are collected as deferred functors and evaluated later
   with full flake/perSystem args, so collection stays static while execution
