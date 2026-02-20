@@ -83,9 +83,9 @@ let
   /**
     Build perSystem argument set.
 
-    includePerSystemConfig: Whether to include config.imp.args.
+    includePerSystemConfig: Whether to include config and config.imp.args.
       Set to false for deferred functor evaluation to prevent infinite recursion.
-      When a functor contributes to perSystem options, and config.imp.args
+      When a functor contributes to perSystem options, and config or config.imp.args
       references those options, including it creates a cycle.
 
     buildDeps: Collected build dependencies from `__outputs.perSystem.buildDeps.*`.
@@ -115,6 +115,7 @@ let
       ${cfg.registry.name} = registry;
       exports = exportSinks;
     }
+    // (if perSystemConfig != null then { config = perSystemConfig; } else { })
     // cfg.args
     // (if perSystemConfig != null then perSystemConfig.imp.args else { });
 

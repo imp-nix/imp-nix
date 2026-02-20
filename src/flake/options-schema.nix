@@ -50,7 +50,7 @@ in
         Extra arguments passed to all imported files.
 
         Flake files receive: { lib, self, inputs, config, imp, registry, ... }
-        perSystem files receive: { pkgs, lib, system, self, self', inputs, inputs', imp, registry, ... }
+        perSystem files receive: { pkgs, lib, system, self, self', inputs, inputs', config, imp, registry, ... }
 
         User-provided args take precedence over defaults.
       '';
@@ -63,7 +63,7 @@ in
         Subdirectory name for per-system outputs.
 
         Files in this directory receive standard flake-parts perSystem args:
-        { pkgs, lib, system, self, self', inputs, inputs', ... }
+        { pkgs, lib, system, self, self', inputs, inputs', config, ... }
       '';
     };
 
