@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_COLLECT_INPUTS
   Collects __inputs declarations from directory trees.
   Standalone implementation - no nixpkgs dependency, only builtins.
 

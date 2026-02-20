@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_API_CHAIN
   API method definitions for imp.
 
   This module defines all chainable methods available on the imp object.

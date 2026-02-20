@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_COLLECT_EXPORTS
   Collects `__exports` declarations from directory trees.
 
   Recursively scans `.nix` files for `__exports` attributes and collects them

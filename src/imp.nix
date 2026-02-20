@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_RUNTIME_CORE
   Internal implementation for the primary imp entrypoint.
 */
 let

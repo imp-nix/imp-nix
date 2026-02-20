@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_TREE_ENGINE
   Internal implementation for directory-to-attrset tree building.
 */
 {

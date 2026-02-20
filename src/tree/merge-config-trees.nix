@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_CONFIG_TREE_MERGE
   Merges multiple config trees into a single NixOS/Home Manager module.
 
   Supports two merge strategies:

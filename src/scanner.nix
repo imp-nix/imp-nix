@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_SCANNER
   Generic directory scanner for collecting special attributes.
 
   Provides shared traversal logic used by all collect-*.nix modules.

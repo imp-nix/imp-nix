@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_REGISTRY
   Registry: named module discovery and resolution.
 
   Scans a directory tree and builds a nested attrset mapping names to paths.

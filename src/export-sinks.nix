@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_EXPORT_SINKS
   Materializes sinks from collected exports by applying merge strategies.
 
   Takes `collectExports` output and produces usable Nix values (modules or

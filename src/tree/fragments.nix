@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_TREE_FRAGMENTS
   Fragment collection and composition for `.d` directories.
 
   Follows the `.d` convention (like conf.d, init.d) where:

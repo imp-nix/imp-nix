@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_OPTIONS_SCHEMA
   Shared options schema for imp.
 
   This is a standard NixOS-style module defining imp.* options.

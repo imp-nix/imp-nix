@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_FLAKE_FORMAT
   Formats flake inputs and generates flake.nix content.
   Standalone implementation - no nixpkgs dependency, only builtins.
 

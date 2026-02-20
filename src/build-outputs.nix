@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_BUILD_OUTPUTS
   Builds flake outputs from collected `__outputs` declarations.
 
   Takes output from `collectOutputs` and produces structures suitable for

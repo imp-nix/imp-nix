@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_CONFIG_TREE
   Builds a NixOS/Home Manager module where directory structure = option paths.
 
   Each file receives module args (`{ config, lib, pkgs, ... }`) plus `extraArgs`,

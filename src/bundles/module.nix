@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_BUNDLES_MODULE
   Internal implementation for bundle utility helpers.
 */
 {

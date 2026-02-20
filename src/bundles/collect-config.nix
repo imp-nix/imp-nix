@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_BUNDLES_CONFIG
   Scan bundle directories for config files.
 
   Returns: { bundlePath = { inner = ...; outer = ...; }; ... }

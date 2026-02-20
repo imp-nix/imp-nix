@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_COLLECT_ENTRY
   Entry point for imp file collection and filtering.
 
   Responsibilities:

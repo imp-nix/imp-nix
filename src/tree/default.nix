@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_TREE_ENTRY
   Entry point for building nested attrsets from directory structure.
 
   Naming:  `foo.nix` | `foo/default.nix` -> `{ foo = ... }`

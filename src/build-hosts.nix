@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_BUILD_HOSTS
   Generates `nixosConfigurations` from collected host declarations.
 
   Takes `collectHosts` output and produces NixOS system configurations for

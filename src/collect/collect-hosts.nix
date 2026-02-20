@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_COLLECT_HOSTS
   Scans directories for `__host` declarations and collects host metadata.
 
   Recursively walks paths, importing each `.nix` file and extracting any

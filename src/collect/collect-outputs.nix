@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_COLLECT_OUTPUTS
   Collects `__outputs` declarations from directory trees.
 
   Scans `.nix` files for `__outputs` attributes targeting flake output paths.

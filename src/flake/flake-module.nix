@@ -1,4 +1,5 @@
 /**
+  Anchor ID: IMP_ANCHOR_FLAKE_MODULE
   Flake-parts module for imp.
 
   Automatically loads flake outputs from a directory structure.
