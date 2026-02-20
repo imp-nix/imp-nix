@@ -34,6 +34,7 @@
   }
   # => {
   #   perSystem = { "packages.lint" = [...]; "devShells.default" = [...]; };
+  #   perSystemTransforms = { "devShells" = <transform>; };
   #   flake = { "overlays.myOverlay" = [...]; };
   # }
   ```
@@ -65,7 +66,8 @@ let
     let
       keys = builtins.attrNames staticCollected;
       perSystemKeys = builtins.filter (k: hasPrefix "perSystem." k) keys;
-      flakeKeys = builtins.filter (k: !(hasPrefix "perSystem." k)) keys;
+      perSystemTransformKeys = builtins.filter (k: hasPrefix "perSystemTransforms." k) keys;
+      flakeKeys = builtins.filter (k: !(hasPrefix "perSystem." k) && !(hasPrefix "perSystemTransforms." k)) keys;
     in
     {
       perSystem = builtins.listToAttrs (
@@ -73,6 +75,12 @@ let
           name = removePrefix "perSystem." k;
           value = staticCollected.${k};
         }) perSystemKeys
+      );
+      perSystemTransforms = builtins.listToAttrs (
+        map (k: {
+          name = removePrefix "perSystemTransforms." k;
+          value = staticCollected.${k};
+        }) perSystemTransformKeys
       );
       flake = builtins.listToAttrs (
         map (k: {
@@ -142,15 +150,72 @@ let
     in
     if hasConflict then throw conflictError else mergedValue;
 
+  # Merge transform records for a single perSystem output type.
+  # Transform values are composed in source order.
+  mergeTransformRecords =
+    outputKey: records:
+    let
+      sorted = builtins.sort (a: b: a.source < b.source) records;
+
+      strategies = map (r: r.strategy) sorted;
+      explicitStrategies = builtins.filter (s: s != null) strategies;
+      uniqueStrategies = lib.unique explicitStrategies;
+
+      hasConflict = builtins.length uniqueStrategies > 1;
+
+      effectiveStrategy =
+        if uniqueStrategies != [ ] then
+          builtins.head uniqueStrategies
+        else if builtins.length records > 1 then
+          "merge"
+        else
+          "override";
+
+      conflictError =
+        let
+          strategyInfo = map (r: "  - ${r.source} (strategy: ${toString r.strategy})") sorted;
+        in
+        ''
+          imp.buildOutputs: conflicting strategies for perSystemTransforms output '${outputKey}'
+          Contributors:
+          ${builtins.concatStringsSep "\n" strategyInfo}
+
+          All contributions to the same output must use compatible strategies.
+        '';
+
+      toTransform =
+        value:
+        if builtins.isFunction value then
+          value
+        else
+          (_: value);
+
+      overrideTransform = toTransform (lib.last sorted).value;
+
+      mergedTransform = section: builtins.foldl' (acc: record: toTransform record.value acc) section sorted;
+    in
+    if hasConflict then
+      throw conflictError
+    else if effectiveStrategy == "override" then
+      overrideTransform
+    else if effectiveStrategy == "merge" || effectiveStrategy == "pipe" then
+      mergedTransform
+    else
+      throw "imp.buildOutputs: unsupported strategy '${effectiveStrategy}' for perSystemTransforms.${outputKey} (use merge, pipe, or override)";
+
   # Build the final structure
   partitioned = partitionOutputs;
 
   buildSection =
     section: builtins.mapAttrs (outputKey: records: mergeOutputRecords outputKey records) section;
 
+  buildTransformSection =
+    section: builtins.mapAttrs (outputKey: records: mergeTransformRecords outputKey records) section;
+
 in
 {
   perSystem = buildSection partitioned.perSystem;
+  perSystemTransforms = buildTransformSection partitioned.perSystemTransforms;
   flake = buildSection partitioned.flake;
   inherit deferredFunctors;
 }

@@ -20,6 +20,7 @@
 
   The module can additionally compose:
   * `__outputs` declarations (portable bundles and drop-in output producers)
+  * `__outputs.perSystemTransforms.*` (post-merge transforms for per-system outputs)
   * `__exports` sinks (push-based module composition)
   * `__host` declarations (auto-generated nixosConfigurations)
   * `__inputs` declarations (flake.nix generation, when enabled)
@@ -118,6 +119,45 @@ let
     // (if perSystemConfig != null then { config = perSystemConfig; } else { })
     // cfg.args
     // (if perSystemConfig != null then perSystemConfig.imp.args else { });
+
+  perSystemArgNames =
+    [
+      "lib"
+      "pkgs"
+      "system"
+      "self"
+      "self'"
+      "inputs"
+      "inputs'"
+      "config"
+      "imp"
+      "buildDeps"
+      cfg.registry.name
+    ]
+    ++ builtins.attrNames cfg.args;
+
+  isPerSystemArgsFunction =
+    fn:
+    let
+      argNames = builtins.attrNames (builtins.functionArgs fn);
+    in
+    argNames != [ ] && builtins.any (name: builtins.elem name perSystemArgNames) argNames;
+
+  evalPerSystemTransform =
+    perSystemArgs: transform:
+    if builtins.isFunction transform && isPerSystemArgsFunction transform then
+      transform perSystemArgs
+    else
+      transform;
+
+  applyPerSystemTransform =
+    transform: current:
+    if transform == null then
+      current
+    else if builtins.isFunction transform then
+      transform current
+    else
+      transform;
 
   buildTree =
     dir: args:
@@ -224,6 +264,7 @@ let
     else
       {
         perSystem = { };
+        perSystemTransforms = { };
         flake = { };
         deferredFunctors = [ ];
       };
@@ -262,6 +303,13 @@ in
           type = types.attrsOf types.unspecified;
           default = { };
           description = "Extra per-system arguments passed to imported files.";
+        };
+
+        _internal.perSystemTransforms = mkOption {
+          type = types.attrsOf types.unspecified;
+          default = { };
+          internal = true;
+          description = "Evaluated post-merge perSystem transforms.";
         };
       };
     }
@@ -365,6 +413,41 @@ in
           merged = lib.foldl' lib.recursiveUpdate { } (lib.attrValues evaluatedOutputs);
         in
         merged;
+    })
+
+    # __outputs.perSystemTransforms.* (evaluated in perSystem context)
+    (lib.mkIf (outputsCfg.enable && builtOutputs.perSystemTransforms != { }) {
+      perSystem =
+        {
+          pkgs,
+          system,
+          self',
+          inputs',
+          config,
+          ...
+        }:
+        let
+          perSystemArgs = mkPerSystemArgs {
+            inherit
+              pkgs
+              system
+              self'
+              inputs'
+              ;
+            perSystemConfig = config;
+          };
+
+          evaluatedTransforms = lib.mapAttrs (
+            outputName: transform:
+            if lib.hasInfix "." outputName then
+              throw "imp perSystemTransforms: '${outputName}' is invalid. Use top-level perSystem output names like 'devShells'."
+            else
+              evalPerSystemTransform perSystemArgs transform
+          ) builtOutputs.perSystemTransforms;
+        in
+        {
+          imp._internal.perSystemTransforms = evaluatedTransforms;
+        };
     })
 
     # Deferred functor outputs (bundles with __functor or plain functions)
@@ -500,6 +583,30 @@ in
           merged = lib.foldl' lib.recursiveUpdate { } deferredResults;
         in
         merged;
+    })
+
+    # Post-merge perSystem transform phase.
+    # Reads merged per-system outputs from config.allSystems and emits transformed
+    # top-level flake outputs (for example, flake.devShells.<system>).
+    (lib.mkIf (outputsCfg.enable && builtOutputs.perSystemTransforms != { }) {
+      flake =
+        let
+          transformedOutputs = lib.mapAttrs' (
+            outputName: _:
+            let
+              bySystem = lib.mapAttrs (
+                _system: perSystemConfig:
+                let
+                  transform = perSystemConfig.imp._internal.perSystemTransforms.${outputName} or null;
+                  current = perSystemConfig.${outputName} or { };
+                in
+                applyPerSystemTransform transform current
+              ) config.allSystems;
+            in
+            lib.nameValuePair outputName (lib.mkForce bySystem)
+          ) builtOutputs.perSystemTransforms;
+        in
+        transformedOutputs;
     })
 
     (lib.mkIf (outputsCfg.enable && builtOutputs.flake != { }) {

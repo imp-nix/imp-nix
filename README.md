@@ -38,6 +38,18 @@ Fragment directories (`.d`) merge their contents, so multiple files can contribu
 }
 ```
 
+Post-merge transforms let you wrap or rename full per-system sections after
+all modules are merged:
+
+```nix
+{
+  __outputs.perSystemTransforms.devShells = shells:
+    shells // {
+      default = shells."my-workspace";
+    };
+}
+```
+
 ## NixOS configurations
 
 For system configuration, imp adds registries, export sinks, and host declarations:

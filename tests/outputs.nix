@@ -82,6 +82,26 @@ in
     expected = true;
   };
 
+  outputs."test buildOutputs separates perSystemTransforms" = {
+    expr =
+      let
+        built = buildOutputs {
+          inherit lib;
+          collected = {
+            "perSystemTransforms.devShells" = [
+              {
+                source = "/transform.nix";
+                value = shells: shells;
+                strategy = null;
+              }
+            ];
+          };
+        };
+      in
+      built ? perSystemTransforms && built.perSystemTransforms ? devShells;
+    expected = true;
+  };
+
   # Test merge strategy for multiple contributions
   # Note: recursiveUpdate replaces nested values, so lists are last-writer-wins
   outputs."test merge strategy combines function outputs" = {
@@ -101,6 +121,63 @@ in
         hasNativeBuildInputs = result ? nativeBuildInputs;
       in
       hasNativeBuildInputs;
+    expected = true;
+  };
+
+  outputs."test perSystemTransforms compose in source order" = {
+    expr =
+      let
+        built = buildOutputs {
+          inherit lib;
+          collected = {
+            "perSystemTransforms.devShells" = [
+              {
+                source = "/10-second.nix";
+                value = shells: shells // { order = (shells.order or [ ]) ++ [ "second" ]; };
+                strategy = null;
+              }
+              {
+                source = "/00-first.nix";
+                value = shells: shells // { order = (shells.order or [ ]) ++ [ "first" ]; };
+                strategy = null;
+              }
+            ];
+          };
+        };
+        transform = built.perSystemTransforms.devShells;
+        result = transform { };
+      in
+      result.order == [
+        "first"
+        "second"
+      ];
+    expected = true;
+  };
+
+  outputs."test perSystemTransforms override strategy keeps last transform" = {
+    expr =
+      let
+        built = buildOutputs {
+          inherit lib;
+          collected = {
+            "perSystemTransforms.devShells" = [
+              {
+                source = "/00-first.nix";
+                value = shells: shells // { first = true; };
+                strategy = "override";
+              }
+              {
+                source = "/10-second.nix";
+                value = _: { second = true; };
+                strategy = "override";
+              }
+            ];
+          };
+        };
+        transform = built.perSystemTransforms.devShells;
+        result = transform { };
+      in
+      !(result ? first) && result.second;
     expected = true;
   };
 
@@ -181,6 +258,28 @@ in
           {
             source = "/b.nix";
             value = { };
+            strategy = "override";
+          }
+        ];
+      };
+    };
+    expectedError.type = "ThrownError";
+    expectedError.msg = ".*conflicting strategies.*";
+  };
+
+  outputs."test conflicting transform strategies throw error" = {
+    expr = buildOutputs {
+      inherit lib;
+      collected = {
+        "perSystemTransforms.devShells" = [
+          {
+            source = "/a.nix";
+            value = shells: shells // { fromA = true; };
+            strategy = "merge";
+          }
+          {
+            source = "/b.nix";
+            value = shells: shells // { fromB = true; };
             strategy = "override";
           }
         ];
