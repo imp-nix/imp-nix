@@ -183,16 +183,73 @@ let
           All contributions to the same output must use compatible strategies.
         '';
 
-      toTransform =
-        value:
-        if builtins.isFunction value then
-          value
+      perSystemMarkerKeys = [
+        "lib"
+        "pkgs"
+        "system"
+        "self"
+        "self'"
+        "inputs"
+        "inputs'"
+        "config"
+        "imp"
+        "buildDeps"
+        "exports"
+        "registry"
+      ];
+
+      looksLikePerSystemArgs =
+        arg:
+        builtins.isAttrs arg && builtins.any (key: builtins.hasAttr key arg) perSystemMarkerKeys;
+
+      isPerSystemArgsLikeFn =
+        perSystemArgs: fn:
+        let
+          fnArgs = builtins.functionArgs fn;
+          requiredArgNames = builtins.attrNames (lib.filterAttrs (_: hasDefault: !hasDefault) fnArgs);
+        in
+        fnArgs != { } && builtins.all (name: builtins.hasAttr name perSystemArgs) requiredArgNames;
+
+      resolveTransform =
+        perSystemArgs: value:
+        if builtins.isFunction value && isPerSystemArgsLikeFn perSystemArgs value then
+          value perSystemArgs
         else
-          (_: value);
+          value;
 
-      overrideTransform = toTransform (lib.last sorted).value;
+      applyTransform =
+        transform: section:
+        if builtins.isFunction transform then
+          transform section
+        else
+          transform;
 
-      mergedTransform = section: builtins.foldl' (acc: record: toTransform record.value acc) section sorted;
+      applyRecords =
+        perSystemArgs: section:
+        builtins.foldl' (
+          acc: record:
+          let
+            resolved = resolveTransform perSystemArgs record.value;
+          in
+          applyTransform resolved acc
+        ) section sorted;
+
+      mergedTransform =
+        arg:
+        if looksLikePerSystemArgs arg then
+          section: applyRecords arg section
+        else
+          applyRecords { } arg;
+
+      overrideTransform =
+        arg:
+        let
+          record = lib.last sorted;
+        in
+        if looksLikePerSystemArgs arg then
+          section: applyTransform (resolveTransform arg record.value) section
+        else
+          applyTransform (resolveTransform { } record.value) arg;
     in
     if hasConflict then
       throw conflictError

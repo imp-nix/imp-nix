@@ -181,6 +181,31 @@ in
     expected = true;
   };
 
+  outputs."test perSystemTransforms supports perSystem-args builder functions" = {
+    expr =
+      let
+        built = buildOutputs {
+          inherit lib;
+          collected = {
+            "perSystemTransforms.devShells" = [
+              {
+                source = "/builder.nix";
+                value = { nciLib, ... }: shells: shells // { default = nciLib.defaultShell; };
+                strategy = null;
+              }
+            ];
+          };
+        };
+        transformWithArgs = built.perSystemTransforms.devShells {
+          pkgs = { };
+          nciLib.defaultShell = "wrapped-shell";
+        };
+        result = transformWithArgs { workspace = "base-shell"; };
+      in
+      result.workspace == "base-shell" && result.default == "wrapped-shell";
+    expected = true;
+  };
+
   # Test single contributor uses override by default
   outputs."test single contributor uses override strategy" = {
     expr =

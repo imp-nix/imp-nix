@@ -145,10 +145,18 @@ let
 
   evalPerSystemTransform =
     perSystemArgs: transform:
-    if builtins.isFunction transform && isPerSystemArgsFunction transform then
+    if !builtins.isFunction transform then
+      transform
+    else if isPerSystemArgsFunction transform then
       transform perSystemArgs
     else
-      transform;
+      let
+        attempted = builtins.tryEval (transform perSystemArgs);
+      in
+      if attempted.success && builtins.isFunction attempted.value then
+        attempted.value
+      else
+        transform;
 
   applyPerSystemTransform =
     transform: current:
