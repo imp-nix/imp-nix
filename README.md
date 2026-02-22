@@ -38,6 +38,24 @@ Fragment directories (`.d`) merge their contents, so multiple files can contribu
 }
 ```
 
+In monorepos, `srcDiscover` can auto-add workspace-local outputs roots so root and
+subprojects share the same `nix/outputs/perSystem` shape:
+
+```nix
+{
+  imports = [ inputs.imp.flakeModules.default ];
+  imp = {
+    src = ./nix/outputs;
+    srcDiscover = [
+      {
+        root = ./workspaces;
+        suffix = "nix/outputs";
+      }
+    ];
+  };
+}
+```
+
 Post-merge transforms let you wrap or rename full per-system sections after
 all modules are merged:
 

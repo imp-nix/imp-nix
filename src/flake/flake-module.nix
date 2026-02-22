@@ -14,6 +14,10 @@
       overlays.nix         -> flake.overlays
       systems.nix          -> systems (list of supported systems)
 
+  Source roots come from:
+  * `imp.src` (explicit outputs roots)
+  * `imp.srcDiscover` (auto-discovered roots from project directories)
+
   Files receive standardized arguments matching flake-parts conventions:
     * perSystem files: { pkgs, lib, system, self, self', inputs, inputs', config, ... }
     * flake files: { lib, self, inputs, config, ... }
@@ -50,6 +54,7 @@ let
   impLib = import ../.;
   utils = import ../lib.nix;
   registryLib = import ../registry.nix { inherit lib; };
+  discoverSrc = import ./discover-src.nix { inherit lib; };
 
   cfg = config.imp;
 
@@ -74,17 +79,21 @@ let
     else
       [ v ];
 
+  headOrNull = xs: if xs == [ ] then null else builtins.head xs;
+
   # Merge configs: outer values override inner (recursiveUpdate)
   mergeConfigs = lib.recursiveUpdate;
 
-  # Get first path from src (for single-path operations like systems.nix)
+  explicitSrcPaths = toPathList cfg.src;
+  discoveredSrcPaths = discoverSrc cfg.srcDiscover;
+  srcPaths = explicitSrcPaths ++ discoveredSrcPaths;
+
+  # Get first src for single-path operations (systems.nix, formatter.d)
   firstSrc =
-    if cfg.src == null then
-      null
-    else if builtins.isList cfg.src then
-      builtins.head cfg.src
-    else
-      cfg.src;
+    let
+      explicitFirst = headOrNull explicitSrcPaths;
+    in
+    if explicitFirst != null then explicitFirst else headOrNull discoveredSrcPaths;
 
   /**
     Build perSystem argument set.
@@ -194,8 +203,6 @@ let
     exports = exportSinks;
   }
   // cfg.args;
-
-  srcPaths = toPathList cfg.src;
 
   flakeTree =
     if srcPaths == [ ] then

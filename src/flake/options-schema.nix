@@ -43,6 +43,56 @@ in
       '';
     };
 
+    srcDiscover = mkOption {
+      type = types.listOf (
+        types.submodule {
+          options = {
+            root = mkOption {
+              type = types.path;
+              description = ''
+                Directory containing project directories to scan.
+              '';
+            };
+
+            suffix = mkOption {
+              type = types.str;
+              default = "nix/outputs";
+              description = ''
+                Relative path from each project directory to an imp outputs root.
+
+                For example, with root `./workspaces` and suffix `nix/outputs`,
+                imp scans:
+                * ./workspaces/<project>/nix/outputs
+              '';
+            };
+
+            includeHidden = mkOption {
+              type = types.bool;
+              default = false;
+              description = ''
+                Include `_`-prefixed project directories during discovery.
+              '';
+            };
+          };
+        }
+      );
+      default = [ ];
+      description = ''
+        Auto-discover additional imp source roots from project directories.
+
+        Each spec scans immediate child directories under `root` and adds the
+        `<child>/<suffix>` path when it exists as a directory.
+      '';
+      example = literalExpression ''
+        [
+          {
+            root = ./workspaces;
+            suffix = "nix/outputs";
+          }
+        ]
+      '';
+    };
+
     args = mkOption {
       type = types.attrsOf types.unspecified;
       default = { };

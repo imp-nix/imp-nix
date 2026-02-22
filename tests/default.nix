@@ -15,3 +15,4 @@ in
 // (import ./hosts.nix args)
 // (import ./fragments.nix args)
 // (import ./config.nix args)
+// (import ./src-discover.nix args)
