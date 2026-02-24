@@ -231,6 +231,7 @@ let
     ```
   */
   bundles = import ./bundles;
+  mkWorkspaceShellTransform = import ./shell/workspace-shell-transform.nix;
 
   /**
     Build flake outputs from collected __outputs declarations.
@@ -403,6 +404,24 @@ let
                   }
                   // args
                 );
+
+            /**
+              Build a perSystem devShell transform for one workspace shell.
+
+              Composes a new shell using `pkgs.mkShell { inputsFrom = [ baseShell ]; ... }`
+              to avoid depending on derivation internals.
+
+              # Example
+
+              ```nix
+              __outputs.perSystemTransforms.devShells = imp.mkWorkspaceShellTransform {
+                workspace = "my-workspace";
+                aliases = [ "default" ];
+                packages = [ pkgs.cargo-edit ];
+              };
+              ```
+            */
+            inherit mkWorkspaceShellTransform;
           };
       };
     in

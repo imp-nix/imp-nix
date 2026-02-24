@@ -95,6 +95,61 @@ let
     in
     if explicitFirst != null then explicitFirst else headOrNull discoveredSrcPaths;
 
+  formatterSourceCandidates = builtins.filter (candidate: candidate != null) (
+    builtins.map (
+      src:
+      let
+        perSystemPath = src + "/${cfg.perSystemDir}";
+        formatterDPath = perSystemPath + "/formatter.d";
+        formatterNixPath = perSystemPath + "/formatter.nix";
+        hasFormatterD = builtins.pathExists formatterDPath;
+        hasFormatterNix = builtins.pathExists formatterNixPath;
+      in
+      if hasFormatterD || hasFormatterNix then
+        {
+          inherit
+            src
+            perSystemPath
+            formatterDPath
+            formatterNixPath
+            hasFormatterD
+            hasFormatterNix
+            ;
+        }
+      else
+        null
+    ) srcPaths
+  );
+
+  selectedFormatterSource = headOrNull formatterSourceCandidates;
+  ignoredFormatterSources =
+    if formatterSourceCandidates == [ ] then [ ] else builtins.tail formatterSourceCandidates;
+  ignoredFormatterSourcePaths = builtins.map (entry: toString entry.src) ignoredFormatterSources;
+  selectedFormatterSourcePath =
+    if selectedFormatterSource == null then "<none>" else toString selectedFormatterSource.src;
+
+  formatterPolicyGuard =
+    if cfg.formatter.sourcePolicy == "error" && ignoredFormatterSources != [ ] then
+      throw (
+        "imp.formatter: multiple formatter sources found. selected=${selectedFormatterSourcePath}, ignored="
+        + builtins.concatStringsSep ", " ignoredFormatterSourcePaths
+      )
+    else
+      null;
+
+  formatterPolicyWarning =
+    if
+      cfg.formatter.sourcePolicy == "first"
+      && cfg.formatter.warnIgnoredSources
+      && ignoredFormatterSources != [ ]
+    then
+      builtins.trace (
+        "imp.formatter: using first formatter source ${selectedFormatterSourcePath}; ignoring "
+        + builtins.concatStringsSep ", " ignoredFormatterSourcePaths
+      ) null
+    else
+      null;
+
   /**
     Build perSystem argument set.
 
@@ -134,21 +189,20 @@ let
     // cfg.args
     // (if perSystemConfig != null then perSystemConfig.imp.args else { });
 
-  perSystemArgNames =
-    [
-      "lib"
-      "pkgs"
-      "system"
-      "self"
-      "self'"
-      "inputs"
-      "inputs'"
-      "config"
-      "imp"
-      "buildDeps"
-      cfg.registry.name
-    ]
-    ++ builtins.attrNames cfg.args;
+  perSystemArgNames = [
+    "lib"
+    "pkgs"
+    "system"
+    "self"
+    "self'"
+    "inputs"
+    "inputs'"
+    "config"
+    "imp"
+    "buildDeps"
+    cfg.registry.name
+  ]
+  ++ builtins.attrNames cfg.args;
 
   isPerSystemArgsFunction =
     fn:
@@ -167,10 +221,7 @@ let
       let
         attempted = builtins.tryEval (transform perSystemArgs);
       in
-      if attempted.success && builtins.isFunction attempted.value then
-        attempted.value
-      else
-        transform;
+      if attempted.success && builtins.isFunction attempted.value then attempted.value else transform;
 
   applyPerSystemTransform =
     transform: current:
@@ -272,8 +323,7 @@ let
     if outputsCfg.enable && outputSources != [ ] then impLib.collectOutputs outputSources else { };
 
   # Collect config from bundles (only directory bundles can have config)
-  collectedConfig =
-    if bundlePaths != [ ] then impLib.bundles.collectConfig bundlePaths else { };
+  collectedConfig = if bundlePaths != [ ] then impLib.bundles.collectConfig bundlePaths else { };
 
   builtOutputs =
     if outputsCfg.enable && collectedOutputs != { } then
@@ -548,7 +598,9 @@ in
             }:
             let
               bundleConfig = getConfigForSource baseArgs source;
-              argsWithConfig = baseArgs // { config = bundleConfig; };
+              argsWithConfig = baseArgs // {
+                config = bundleConfig;
+              };
               fn = if isFunctor then functor.__functor functor else functor;
               result = fn argsWithConfig;
               outputs = result.__outputs or { };
@@ -588,7 +640,9 @@ in
             }:
             let
               bundleConfig = getConfigForSource perSystemArgs source;
-              argsWithConfig = perSystemArgs // { config = bundleConfig; };
+              argsWithConfig = perSystemArgs // {
+                config = bundleConfig;
+              };
               fn = if isFunctor then functor.__functor functor else functor;
               result = fn argsWithConfig;
               outputs = result.__outputs or { };
@@ -655,12 +709,14 @@ in
           ...
         }:
         let
-          # formatter.d and formatter.nix from first src only
-          perSystemPath = if firstSrc != null then firstSrc + "/${cfg.perSystemDir}" else null;
-          formatterDPath = if perSystemPath != null then perSystemPath + "/formatter.d" else null;
-          formatterNixPath = if perSystemPath != null then perSystemPath + "/formatter.nix" else null;
-          hasFormatterD = formatterDPath != null && builtins.pathExists formatterDPath;
-          hasFormatterNix = formatterNixPath != null && builtins.pathExists formatterNixPath;
+          formatterSource = builtins.seq formatterPolicyGuard (
+            builtins.seq formatterPolicyWarning selectedFormatterSource
+          );
+          perSystemPath = if formatterSource != null then formatterSource.perSystemPath else null;
+          formatterDPath = if formatterSource != null then formatterSource.formatterDPath else null;
+          formatterNixPath = if formatterSource != null then formatterSource.formatterNixPath else null;
+          hasFormatterD = formatterSource != null && formatterSource.hasFormatterD;
+          hasFormatterNix = formatterSource != null && formatterSource.hasFormatterNix;
           hasOutputsFormatter = outputsCfg.enable && builtOutputs.perSystem ? "formatter";
           hasDeferredFunctors = outputsCfg.enable && builtOutputs.deferredFunctors != [ ];
 
@@ -743,7 +799,9 @@ in
                   }:
                   let
                     bundleConfig = getConfigForSource perSystemArgs source;
-                    argsWithConfig = perSystemArgs // { config = bundleConfig; };
+                    argsWithConfig = perSystemArgs // {
+                      config = bundleConfig;
+                    };
                     fn = if isFunctor then functor.__functor functor else functor;
                     result = fn argsWithConfig;
                     outputs = result.__outputs or { };

@@ -61,10 +61,11 @@ all modules are merged:
 
 ```nix
 {
-  __outputs.perSystemTransforms.devShells = shells:
-    shells // {
-      default = shells."my-workspace";
-    };
+  __outputs.perSystemTransforms.devShells = imp.mkWorkspaceShellTransform {
+    workspace = "my-workspace";
+    aliases = [ "default" ];
+    packages = [ pkgs.cargo-edit pkgs.clang pkgs.mold ];
+  };
 }
 ```
 
@@ -87,6 +88,16 @@ shared helpers from `imp.args`:
       workspace = "my-workspace";
       aliases = [ "default" ];
     };
+}
+```
+
+When multiple `imp.src` / `imp.srcDiscover` roots provide formatter definitions,
+imp defaults to first-source-wins. Set formatter policy explicitly if you want
+strict behavior:
+
+```nix
+{
+  imp.formatter.sourcePolicy = "error";
 }
 ```
 

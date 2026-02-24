@@ -124,6 +124,121 @@ in
     expected = true;
   };
 
+  outputs."test shell-merge strategy composes shell fields" = {
+    expr =
+      let
+        built = buildOutputs {
+          inherit lib;
+          collected = {
+            "perSystem.devShells.default" = [
+              {
+                source = "/shell-a.nix";
+                strategy = "shell-merge";
+                value = { };
+              }
+              {
+                source = "/shell-b.nix";
+                strategy = "shell-merge";
+                value = {
+                  packages = [
+                    "git"
+                    "jq"
+                  ];
+                  nativeBuildInputs = [ "clang" ];
+                  inputsFrom = [ "base" ];
+                  shellHook = "echo from-b";
+                };
+              }
+              {
+                source = "/shell-c.nix";
+                strategy = "shell-merge";
+                value = {
+                  packages = [
+                    "jq"
+                    "fd"
+                  ];
+                  nativeBuildInputs = [
+                    "clang"
+                    "mold"
+                  ];
+                  shellHook = "echo from-c";
+                };
+              }
+            ];
+          };
+        };
+        shell = built.perSystem."devShells.default";
+      in
+      shell.packages == [
+        "git"
+        "jq"
+        "fd"
+      ]
+      &&
+        shell.nativeBuildInputs == [
+          "clang"
+          "mold"
+        ]
+      && shell.inputsFrom == [ "base" ]
+      && shell.shellHook == "echo from-b\necho from-c";
+    expected = true;
+  };
+
+  outputs."test shell-merge strategy composes function outputs" = {
+    expr =
+      let
+        built = buildOutputs {
+          inherit lib;
+          collected = {
+            "perSystem.devShells.default" = [
+              {
+                source = "/shell-a.nix";
+                strategy = "shell-merge";
+                value = _args: {
+                  packages = [ "git" ];
+                  shellHook = "echo a";
+                };
+              }
+              {
+                source = "/shell-b.nix";
+                strategy = "shell-merge";
+                value = _args: {
+                  packages = [ "jq" ];
+                  nativeBuildInputs = [ "clang" ];
+                  shellHook = "echo b";
+                };
+              }
+            ];
+          };
+        };
+        shell = built.perSystem."devShells.default" { };
+      in
+      shell.packages == [
+        "git"
+        "jq"
+      ]
+      && shell.nativeBuildInputs == [ "clang" ]
+      && shell.shellHook == "echo a\necho b";
+    expected = true;
+  };
+
+  outputs."test shell-merge strategy rejects non-attrset values" = {
+    expr = buildOutputs {
+      inherit lib;
+      collected = {
+        "perSystem.devShells.default" = [
+          {
+            source = "/bad-shell.nix";
+            strategy = "shell-merge";
+            value = 42;
+          }
+        ];
+      };
+    };
+    expectedError.type = "ThrownError";
+    expectedError.msg = ".*shell-merge.*";
+  };
+
   outputs."test perSystemTransforms compose in source order" = {
     expr =
       let
@@ -204,6 +319,60 @@ in
       in
       result.workspace == "base-shell" && result.default == "wrapped-shell";
     expected = true;
+  };
+
+  outputs."test mkWorkspaceShellTransform composes workspace shell with aliases" = {
+    expr =
+      let
+        transformBuilder = imp.mkWorkspaceShellTransform {
+          workspace = "workspace";
+          aliases = [
+            "default"
+            "rust"
+          ];
+          packages = [ "cargo-edit" ];
+          shellHook = "echo extra";
+        };
+        mockPkgs = {
+          mkShell = args: args // { __type = "mock-shell"; };
+        };
+        transform = transformBuilder {
+          pkgs = mockPkgs;
+          inherit lib;
+        };
+        baseShell = {
+          __type = "base-shell";
+          shellHook = "echo base";
+        };
+        result = transform { workspace = baseShell; };
+      in
+      result.workspace.__type == "mock-shell"
+      && result.default.__type == "mock-shell"
+      && result.rust.__type == "mock-shell"
+      && result.workspace.inputsFrom == [ baseShell ]
+      && result.workspace.packages == [ "cargo-edit" ]
+      && result.workspace.shellHook == "echo base\necho extra";
+    expected = true;
+  };
+
+  outputs."test mkWorkspaceShellTransform throws on alias conflicts" = {
+    expr =
+      let
+        transformBuilder = imp.mkWorkspaceShellTransform {
+          workspace = "workspace";
+          aliases = [ "default" ];
+        };
+        transform = transformBuilder {
+          pkgs.mkShell = args: args;
+          inherit lib;
+        };
+      in
+      transform {
+        workspace = { };
+        default = { };
+      };
+    expectedError.type = "ThrownError";
+    expectedError.msg = ".*aliases already defined.*";
   };
 
   # Test single contributor uses override by default

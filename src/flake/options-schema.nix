@@ -274,6 +274,32 @@ in
       };
     };
 
+    formatter = {
+      sourcePolicy = mkOption {
+        type = types.enum [
+          "first"
+          "error"
+        ];
+        default = "first";
+        description = ''
+          How imp handles formatter definitions when multiple `imp.src` / `imp.srcDiscover`
+          roots contain `perSystem/formatter.nix` or `perSystem/formatter.d`.
+
+          * `"first"`: Use the first root in source order and ignore later formatter roots.
+          * `"error"`: Throw when more than one formatter root is present.
+        '';
+      };
+
+      warnIgnoredSources = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Emit a trace warning when `sourcePolicy = "first"` ignores additional
+          formatter roots.
+        '';
+      };
+    };
+
     bundles = {
       src = mkOption {
         type = types.nullOr pathOrPaths;

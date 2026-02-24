@@ -30,15 +30,15 @@
   # post-merge perSystem transforms (run on final merged output section)
   {
     __outputs.perSystemTransforms.devShells = finalShells:
-      builtins.mapAttrs (_: shell: shell.overrideAttrs (_: { })) finalShells;
+      finalShells;
   }
 
-  # perSystem-arg builder form for transforms
+  # perSystem-arg builder form for transforms (preferred for shell wrapping)
   {
-    __outputs.perSystemTransforms.devShells = { nciLib, ... }:
-      nciLib.mkWorkspaceShellTransform {
+    __outputs.perSystemTransforms.devShells = imp.mkWorkspaceShellTransform {
         workspace = "my-workspace";
         aliases = [ "default" ];
+        packages = [ pkgs.cargo-edit ];
       };
   }
 

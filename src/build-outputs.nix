@@ -75,7 +75,9 @@ let
       keys = builtins.attrNames staticCollected;
       perSystemKeys = builtins.filter (k: hasPrefix "perSystem." k) keys;
       perSystemTransformKeys = builtins.filter (k: hasPrefix "perSystemTransforms." k) keys;
-      flakeKeys = builtins.filter (k: !(hasPrefix "perSystem." k) && !(hasPrefix "perSystemTransforms." k)) keys;
+      flakeKeys = builtins.filter (
+        k: !(hasPrefix "perSystem." k) && !(hasPrefix "perSystemTransforms." k)
+      ) keys;
     in
     {
       perSystem = builtins.listToAttrs (
@@ -99,6 +101,59 @@ let
     };
 
   # Merge output records for a single output path
+  shellListKeys = [
+    "packages"
+    "nativeBuildInputs"
+    "buildInputs"
+    "inputsFrom"
+  ];
+
+  assertShellListField =
+    outputKey: key: value:
+    if builtins.isList value then
+      null
+    else
+      throw "imp.buildOutputs: ${outputKey} uses strategy 'shell-merge' but '${key}' is not a list";
+
+  mergeShellAttrsets =
+    outputKey: left: right:
+    let
+      base = recursiveUpdate left right;
+      mergedLists = builtins.foldl' (
+        acc: key:
+        let
+          leftHas = builtins.hasAttr key left;
+          rightHas = builtins.hasAttr key right;
+          leftValue = if leftHas then left.${key} else [ ];
+          rightValue = if rightHas then right.${key} else [ ];
+          leftGuard = assertShellListField outputKey key leftValue;
+          rightGuard = assertShellListField outputKey key rightValue;
+        in
+        if !leftHas && !rightHas then
+          acc
+        else
+          builtins.seq leftGuard (
+            builtins.seq rightGuard (acc // { ${key} = lib.unique (leftValue ++ rightValue); })
+          )
+      ) base shellListKeys;
+      shellHookParts = builtins.filter (part: builtins.isString part && part != "") [
+        (left.shellHook or "")
+        (right.shellHook or "")
+      ];
+      mergedShellHook = lib.concatStringsSep "\n" shellHookParts;
+    in
+    if shellHookParts == [ ] then mergedLists else mergedLists // { shellHook = mergedShellHook; };
+
+  mergeShellValues =
+    outputKey: values:
+    let
+      nonAttrs = builtins.filter (value: !lib.isAttrs value) values;
+    in
+    if nonAttrs != [ ] then
+      throw "imp.buildOutputs: ${outputKey} uses strategy 'shell-merge' but got ${builtins.typeOf (builtins.head nonAttrs)}"
+    else
+      builtins.foldl' (acc: value: mergeShellAttrsets outputKey acc value) { } values;
+
   mergeOutputRecords =
     outputKey: records:
     let
@@ -152,6 +207,15 @@ let
           else
             # Can't merge non-attrsets, use last
             lib.last values
+        else if effectiveStrategy == "shell-merge" then
+          let
+            values = map (r: r.value) sorted;
+            allFunctions = builtins.all builtins.isFunction values;
+          in
+          if allFunctions then
+            args: mergeShellValues outputKey (map (fn: fn args) values)
+          else
+            mergeShellValues outputKey values
         else
           (lib.last sorted).value;
 
@@ -207,8 +271,7 @@ let
       ];
 
       looksLikePerSystemArgs =
-        arg:
-        builtins.isAttrs arg && builtins.any (key: builtins.hasAttr key arg) perSystemMarkerKeys;
+        arg: builtins.isAttrs arg && builtins.any (key: builtins.hasAttr key arg) perSystemMarkerKeys;
 
       isPerSystemArgsLikeFn =
         perSystemArgs: fn:
@@ -226,11 +289,7 @@ let
           value;
 
       applyTransform =
-        transform: section:
-        if builtins.isFunction transform then
-          transform section
-        else
-          transform;
+        transform: section: if builtins.isFunction transform then transform section else transform;
 
       applyRecords =
         perSystemArgs: section:
@@ -243,11 +302,7 @@ let
         ) section sorted;
 
       mergedTransform =
-        arg:
-        if looksLikePerSystemArgs arg then
-          section: applyRecords arg section
-        else
-          applyRecords { } arg;
+        arg: if looksLikePerSystemArgs arg then section: applyRecords arg section else applyRecords { } arg;
 
       overrideTransform =
         arg:
