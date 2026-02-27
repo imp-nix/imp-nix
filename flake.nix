@@ -16,54 +16,65 @@
   };
 
   outputs =
-    inputs@{ self, flake-parts, ... }:
+    inputs@{ flake-parts, ... }:
     let
       # Bootstrap: import imp-nix directly from source
       imp = import ./src;
-    in
-    # Direct exports (available without flake-parts evaluation)
-    {
-      # imp library API
-      __functor = imp.__functor;
-      __config = imp.__config;
-      withLib = imp.withLib;
-      addRoot = imp.addRoot;
-      addAPI = imp.addAPI;
-      new = imp.new;
+      directExports = {
+        # imp library API
+        __functor = imp.__functor;
+        __config = imp.__config;
+        withLib = imp.withLib;
+        addRoot = imp.addRoot;
+        addAPI = imp.addAPI;
+        new = imp.new;
 
-      tree = imp.tree;
-      treeWith = imp.treeWith;
-      configTree = imp.configTree;
-      configTreeWith = imp.configTreeWith;
+        tree = imp.tree;
+        treeWith = imp.treeWith;
+        configTree = imp.configTree;
+        configTreeWith = imp.configTreeWith;
 
-      collectInputs = imp.collectInputs;
-      formatInputs = imp.formatInputs;
-      formatFlake = imp.formatFlake;
-      collectAndFormatFlake = imp.collectAndFormatFlake;
-    }
-    # Flake-parts outputs (perSystem, flake outputs from ./outputs)
-    // flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ];
+        collectInputs = imp.collectInputs;
+        formatInputs = imp.formatInputs;
+        formatFlake = imp.formatFlake;
+        collectAndFormatFlake = imp.collectAndFormatFlake;
+        mkWorkspaceFlakeOutputs = imp.mkWorkspaceFlakeOutputs;
+      };
+      flakePartsOutputs = flake-parts.lib.mkFlake { inherit inputs; } {
+        systems = [
+          "x86_64-linux"
+          "aarch64-linux"
+          "x86_64-darwin"
+          "aarch64-darwin"
+        ];
 
-      imports = [
-        ./src/flake/flake-module.nix
-      ];
+        imports = [
+          ./src/flake/flake-module.nix
+        ];
 
-      imp = {
-        src = ./outputs;
-        registry.src = ./src;
-        exports.enable = false;
-        args = {
-          treefmt-nix = inputs.treefmt-nix;
+        imp = {
+          src = ./outputs;
+          registry.src = ./src;
+          exports.enable = false;
+          args = {
+            treefmt-nix = inputs.treefmt-nix;
+          };
+
+          # imp-nix uses a custom flake.nix with direct exports, so disable auto-generation
+          flakeFile.enable = false;
         };
+      };
+      base = directExports // flakePartsOutputs;
+      existingLib = if builtins.hasAttr "lib" base then base.lib else { };
+    in
+    base
+    // {
+      lib = existingLib // {
+        mkWorkspaceFlakeOutputs = imp.mkWorkspaceFlakeOutputs;
+      };
 
-        # imp-nix uses a custom flake.nix with direct exports, so disable auto-generation
-        flakeFile.enable = false;
+      workspaceRuntime = {
+        nixpkgs = inputs.nixpkgs;
       };
     };
 }

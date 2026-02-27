@@ -375,6 +375,48 @@ in
     expectedError.msg = ".*aliases already defined.*";
   };
 
+  outputs."test mkWorkspaceFlakeOutputs delegates to upstream workspace outputs" = {
+    expr =
+      let
+        project = {
+          name = "demo";
+          kind = "node-workspace";
+          workspace = "demo-workspace";
+        };
+        upstream = {
+          devShells.x86_64-linux.demo-workspace = "shell-linux";
+          formatter.x86_64-linux = "formatter-linux";
+          packages.x86_64-linux.demo = "package-linux";
+          checks.x86_64-linux.demo-tests = "check-linux";
+        };
+        delegated = imp.mkWorkspaceFlakeOutputs {
+          inherit project;
+          upstreamFlake = upstream;
+        };
+      in
+      delegated.devShells.x86_64-linux.default == "shell-linux"
+      && delegated.formatter.x86_64-linux == "formatter-linux"
+      && delegated.packages.x86_64-linux.default == "package-linux"
+      && delegated.checks.x86_64-linux.default == "check-linux";
+    expected = true;
+  };
+
+  outputs."test mkWorkspaceFlakeOutputs standalone mode requires runtime nixpkgs" = {
+    expr = imp.mkWorkspaceFlakeOutputs {
+      project = {
+        name = "demo";
+        kind = "rust-workspace";
+        workspace = "demo-workspace";
+        path = ./fixtures/bundles/outputs;
+      };
+      upstreamFlake = {
+        devShells.x86_64-linux.default = { };
+      };
+    };
+    expectedError.type = "ThrownError";
+    expectedError.msg = ".*standalone mode requires runtime.nixpkgs.*";
+  };
+
   # Test single contributor uses override by default
   outputs."test single contributor uses override strategy" = {
     expr =
