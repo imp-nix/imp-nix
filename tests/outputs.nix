@@ -401,20 +401,51 @@ in
     expected = true;
   };
 
-  outputs."test mkWorkspaceFlakeOutputs standalone mode requires runtime nixpkgs" = {
+  outputs."test mkWorkspaceFlakeOutputs standalone mode requires runtime adapters" = {
     expr = imp.mkWorkspaceFlakeOutputs {
       project = {
         name = "demo";
         kind = "rust-workspace";
         workspace = "demo-workspace";
-        path = ./fixtures/bundles/outputs;
       };
       upstreamFlake = {
         devShells.x86_64-linux.default = { };
       };
     };
     expectedError.type = "ThrownError";
-    expectedError.msg = ".*standalone mode requires runtime.nixpkgs.*";
+    expectedError.msg = ".*standalone mode requires runtime.adapters.*";
+  };
+
+  outputs."test mkWorkspaceFlakeOutputs standalone mode dispatches adapter for project kind" = {
+    expr =
+      let
+        project = {
+          name = "demo";
+          kind = "node-workspace";
+          workspace = "demo-workspace";
+        };
+        runtime = {
+          adapters = {
+            "node-workspace" =
+              {
+                project,
+                ...
+              }:
+              {
+                devShells.x86_64-linux.default = "shell-${project.name}";
+                formatter.x86_64-linux = "formatter";
+              };
+          };
+        };
+        standalone = imp.mkWorkspaceFlakeOutputs {
+          inherit project runtime;
+        };
+      in
+      standalone.devShells.x86_64-linux.default == "shell-demo"
+      && standalone.formatter.x86_64-linux == "formatter"
+      && standalone.packages == { }
+      && standalone.checks == { };
+    expected = true;
   };
 
   # Test single contributor uses override by default

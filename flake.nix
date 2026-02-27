@@ -39,6 +39,7 @@
         formatFlake = imp.formatFlake;
         collectAndFormatFlake = imp.collectAndFormatFlake;
         mkWorkspaceFlakeOutputs = imp.mkWorkspaceFlakeOutputs;
+        mkDefaultWorkspaceRuntime = imp.mkDefaultWorkspaceRuntime;
       };
       flakePartsOutputs = flake-parts.lib.mkFlake { inherit inputs; } {
         systems = [
@@ -66,15 +67,19 @@
       };
       base = directExports // flakePartsOutputs;
       existingLib = if builtins.hasAttr "lib" base then base.lib else { };
+      workspaceRuntime = imp.mkDefaultWorkspaceRuntime {
+        nixpkgs = inputs.nixpkgs;
+      };
     in
     base
     // {
       lib = existingLib // {
         mkWorkspaceFlakeOutputs = imp.mkWorkspaceFlakeOutputs;
+        mkDefaultWorkspaceRuntime = imp.mkDefaultWorkspaceRuntime;
       };
 
-      workspaceRuntime = {
-        nixpkgs = inputs.nixpkgs;
-      };
+      inherit workspaceRuntime;
+      workspaceAdapters = workspaceRuntime.adapters;
+      workspacePolicy = workspaceRuntime.policy;
     };
 }
