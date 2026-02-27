@@ -233,7 +233,6 @@ let
   bundles = import ./bundles;
   mkWorkspaceShellTransform = import ./shell/workspace-shell-transform.nix;
   mkWorkspaceFlakeOutputs = import ./workspace/mk-workspace-flake-outputs.nix;
-  mkDefaultWorkspaceRuntime = import ./workspace/runtime/default.nix;
 
   /**
     Build flake outputs from collected __outputs declarations.
@@ -432,10 +431,7 @@ let
               * delegated mode against upstream monorepo outputs
               * standalone mode with imp-provided runtime inputs
             */
-            inherit
-              mkWorkspaceFlakeOutputs
-              mkDefaultWorkspaceRuntime
-              ;
+            inherit mkWorkspaceFlakeOutputs;
           };
       };
     in

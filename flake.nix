@@ -4,6 +4,8 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    workspace-adapters.url = "github:imp-nix/imp-workspace-adapters";
+    workspace-adapters.inputs.nixpkgs.follows = "nixpkgs";
 
     # Collected from __inputs declarations in outputs/
     # Regenerate with: nix run .#imp-flake
@@ -39,7 +41,6 @@
         formatFlake = imp.formatFlake;
         collectAndFormatFlake = imp.collectAndFormatFlake;
         mkWorkspaceFlakeOutputs = imp.mkWorkspaceFlakeOutputs;
-        mkDefaultWorkspaceRuntime = imp.mkDefaultWorkspaceRuntime;
       };
       flakePartsOutputs = flake-parts.lib.mkFlake { inherit inputs; } {
         systems = [
@@ -67,19 +68,16 @@
       };
       base = directExports // flakePartsOutputs;
       existingLib = if builtins.hasAttr "lib" base then base.lib else { };
-      workspaceRuntime = imp.mkDefaultWorkspaceRuntime {
-        nixpkgs = inputs.nixpkgs;
-      };
+      workspaceRuntime = inputs.workspace-adapters.workspaceRuntime;
     in
     base
     // {
       lib = existingLib // {
         mkWorkspaceFlakeOutputs = imp.mkWorkspaceFlakeOutputs;
-        mkDefaultWorkspaceRuntime = imp.mkDefaultWorkspaceRuntime;
       };
 
       inherit workspaceRuntime;
-      workspaceAdapters = workspaceRuntime.adapters;
-      workspacePolicy = workspaceRuntime.policy;
+      workspaceAdapters = inputs.workspace-adapters.workspaceAdapters or workspaceRuntime.adapters;
+      workspacePolicy = inputs.workspace-adapters.workspacePolicy or workspaceRuntime.policy;
     };
 }

@@ -100,7 +100,8 @@
         "flake-parts": "flake-parts",
         "nix-unit": "nix-unit",
         "nixpkgs": "nixpkgs",
-        "treefmt-nix": "treefmt-nix_2"
+        "treefmt-nix": "treefmt-nix_2",
+        "workspace-adapters": "workspace-adapters"
       }
     },
     "treefmt-nix": {
@@ -141,6 +142,26 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "workspace-adapters": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1772158550,
+        "narHash": "sha256-f2Xu290uUuogFP+ns0KN5MfRo7lyvZzgvWkS8wC/cEg=",
+        "owner": "imp-nix",
+        "repo": "imp-workspace-adapters",
+        "rev": "703b5e9b875d78290fb5babe167387d1d74de1ce",
+        "type": "github"
+      },
+      "original": {
+        "owner": "imp-nix",
+        "repo": "imp-workspace-adapters",
         "type": "github"
       }
     }
