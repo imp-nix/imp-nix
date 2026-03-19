@@ -69,7 +69,7 @@ let
       if value then "true" else "false"
     else if builtins.isInt value then
       toString value
-    else if builtins.isNull value then
+    else if isNull value then
       "null"
     else if builtins.isList value then
       let
@@ -133,7 +133,7 @@ let
       names = builtins.attrNames def;
       hasUrl = def ? url;
       hasInputs = def ? inputs && builtins.isAttrs def.inputs;
-      otherAttrs = builtins.removeAttrs def [
+      otherAttrs = removeAttrs def [
         "url"
         "inputs"
       ];

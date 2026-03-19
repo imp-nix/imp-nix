@@ -26,7 +26,6 @@
   ```
 */
 let
-  utils = import ./lib.nix;
 
   /**
     Check if a path should be excluded (basename starts with `_`).
