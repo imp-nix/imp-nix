@@ -19,6 +19,9 @@
   * `merge`/`pipe`: compose in source-path order
   * `override`: keep the last transform contributor
 
+  Strategy analysis (sorting, effective strategy selection, conflict
+  diagnostics) is shared with export sinks through `record-strategies.nix`.
+
   Formatter composition is handled in `flake/flake-module.nix`, where
   `formatter.d/` fragments and `__outputs.perSystem.formatter` values are
   combined before treefmt evaluation.
@@ -57,10 +60,9 @@
   collected ? { },
 }:
 let
+  recordStrategies = import ./record-strategies.nix { inherit lib; };
   hasPrefix = lib.hasPrefix;
   removePrefix = lib.removePrefix;
-  splitString = lib.splitString;
-  setAttrByPath = lib.setAttrByPath;
   recursiveUpdate = lib.recursiveUpdate;
 
   # Extract deferred functors (evaluated later with real args)
@@ -156,105 +158,48 @@ let
 
   mergeOutputRecords =
     outputKey: records:
-    let
-      sorted = builtins.sort (a: b: a.source < b.source) records;
-
-      # Determine effective strategy
-      strategies = map (r: r.strategy) sorted;
-      explicitStrategies = builtins.filter (s: s != null) strategies;
-      uniqueStrategies = lib.unique explicitStrategies;
-
-      hasConflict = builtins.length uniqueStrategies > 1;
-
-      effectiveStrategy =
-        if uniqueStrategies != [ ] then
-          builtins.head uniqueStrategies
-        else
-        # Default: merge for multiple contributors, override for single
-        if builtins.length records > 1 then
+    recordStrategies.merge {
+      scope = "imp.buildOutputs";
+      subject = "output '${outputKey}'";
+      inherit records;
+      defaultStrategy = resolved:
+        if builtins.length resolved > 1 then
           "merge"
         else
           "override";
-
-      conflictError =
-        let
-          strategyInfo = map (r: "  - ${r.source} (strategy: ${toString r.strategy})") sorted;
-        in
-        ''
-          imp.buildOutputs: conflicting strategies for output '${outputKey}'
-          Contributors:
-          ${builtins.concatStringsSep "\n" strategyInfo}
-
-          All contributions to the same output must use compatible strategies.
-        '';
-
-      # Apply merge strategy
-      mergedValue =
-        if effectiveStrategy == "override" then
-          (lib.last sorted).value
-        else if effectiveStrategy == "merge" then
-          # For merge, we need to combine the values
-          # Values might be functions (for perSystem) - we'll wrap them
+      handlers = {
+        override = state: (lib.last state.sorted).value;
+        merge =
+          state:
           let
-            values = map (r: r.value) sorted;
+            values = map (record: record.value) state.sorted;
             allFunctions = builtins.all builtins.isFunction values;
           in
           if allFunctions then
-            # Return a function that merges results
             args: builtins.foldl' (acc: fn: recursiveUpdate acc (fn args)) { } values
           else if builtins.all lib.isAttrs values then
             builtins.foldl' recursiveUpdate { } values
           else
-            # Can't merge non-attrsets, use last
-            lib.last values
-        else if effectiveStrategy == "shell-merge" then
+            lib.last values;
+        shell-merge =
+          state:
           let
-            values = map (r: r.value) sorted;
+            values = map (record: record.value) state.sorted;
             allFunctions = builtins.all builtins.isFunction values;
           in
           if allFunctions then
             args: mergeShellValues outputKey (map (fn: fn args) values)
           else
-            mergeShellValues outputKey values
-        else
-          (lib.last sorted).value;
-
-    in
-    if hasConflict then throw conflictError else mergedValue;
+            mergeShellValues outputKey values;
+      };
+      conflictHint = "All contributions to the same output must use compatible strategies.";
+    };
 
   # Merge transform records for a single perSystem output type.
   # Transform values are composed in source order.
   mergeTransformRecords =
     outputKey: records:
     let
-      sorted = builtins.sort (a: b: a.source < b.source) records;
-
-      strategies = map (r: r.strategy) sorted;
-      explicitStrategies = builtins.filter (s: s != null) strategies;
-      uniqueStrategies = lib.unique explicitStrategies;
-
-      hasConflict = builtins.length uniqueStrategies > 1;
-
-      effectiveStrategy =
-        if uniqueStrategies != [ ] then
-          builtins.head uniqueStrategies
-        else if builtins.length records > 1 then
-          "merge"
-        else
-          "override";
-
-      conflictError =
-        let
-          strategyInfo = map (r: "  - ${r.source} (strategy: ${toString r.strategy})") sorted;
-        in
-        ''
-          imp.buildOutputs: conflicting strategies for perSystemTransforms output '${outputKey}'
-          Contributors:
-          ${builtins.concatStringsSep "\n" strategyInfo}
-
-          All contributions to the same output must use compatible strategies.
-        '';
-
       perSystemMarkerKeys = [
         "lib"
         "pkgs"
@@ -299,7 +244,7 @@ let
             resolved = resolveTransform perSystemArgs record.value;
           in
           applyTransform resolved acc
-        ) section sorted;
+        ) section state.sorted;
 
       mergedTransform =
         arg: if looksLikePerSystemArgs arg then section: applyRecords arg section else applyRecords { } arg;
@@ -307,21 +252,30 @@ let
       overrideTransform =
         arg:
         let
-          record = lib.last sorted;
+          record = lib.last state.sorted;
         in
         if looksLikePerSystemArgs arg then
           section: applyTransform (resolveTransform arg record.value) section
         else
           applyTransform (resolveTransform { } record.value) arg;
+      state = recordStrategies.prepare {
+        scope = "imp.buildOutputs";
+        subject = "perSystemTransforms output '${outputKey}'";
+        inherit records;
+        defaultStrategy = resolved:
+          if builtins.length resolved > 1 then
+            "merge"
+          else
+            "override";
+        conflictHint = "All contributions to the same output must use compatible strategies.";
+      };
     in
-    if hasConflict then
-      throw conflictError
-    else if effectiveStrategy == "override" then
+    if state.effectiveStrategy == "override" then
       overrideTransform
-    else if effectiveStrategy == "merge" || effectiveStrategy == "pipe" then
+    else if state.effectiveStrategy == "merge" || state.effectiveStrategy == "pipe" then
       mergedTransform
     else
-      throw "imp.buildOutputs: unsupported strategy '${effectiveStrategy}' for perSystemTransforms.${outputKey} (use merge, pipe, or override)";
+      throw "imp.buildOutputs: unsupported strategy '${state.effectiveStrategy}' for perSystemTransforms.${outputKey} (use merge, pipe, or override)";
 
   # Build the final structure
   partitioned = partitionOutputs;

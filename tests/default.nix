@@ -4,6 +4,7 @@ let
   args = { inherit lib imp; };
 in
 (import ./core.nix args)
+// (import ./fs-model.nix args)
 // (import ./imp.nix args)
 // (import ./tree.nix args)
 // (import ./flake-file.nix args)

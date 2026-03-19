@@ -62,6 +62,8 @@
   extraArgs ? { },
 }:
 let
+  fs = import ../fs-model.nix;
+
   buildConfigTree =
     root:
     {
@@ -77,55 +79,39 @@ let
         dir:
         let
           isRoot = dir == root;
-          entries = builtins.readDir dir;
-
-          toAttrName =
-            name:
-            let
-              withoutNix = lib.removeSuffix ".nix" name;
-            in
-            lib.removeSuffix "_" withoutNix;
-
-          shouldInclude =
-            name:
-            !(lib.hasPrefix "_" name)
-            && !(isRoot && name == "default.nix")
-            && filterf (toString dir + "/" + name);
+          entries = fs.listDir {
+            inherit dir filterf;
+            normalize = fs.normalizeAttrName { };
+            entryPointNames = [ "default.nix" ];
+          };
 
           processEntry =
-            name: type:
-            let
-              path = dir + "/${name}";
-              attrName = toAttrName name;
-            in
-            if type == "regular" && lib.hasSuffix ".nix" name then
+            entry:
+            if !entry.included || (isRoot && entry.name == "default.nix") then
+              { }
+            else if entry.isRegular && entry.isNixFile then
               let
-                fileContent = import path;
+                fileContent = import entry.path;
                 value = if builtins.isFunction fileContent then fileContent args else fileContent;
               in
               {
-                ${attrName} = value;
+                ${entry.attrName} = value;
               }
-            else if type == "directory" then
-              let
-                defaultPath = path + "/default.nix";
-                hasDefault = builtins.pathExists defaultPath;
-              in
-              if hasDefault then
+            else if entry.isDirectory then
+              if entry.hasEntryPoint then
                 let
-                  fileContent = import path;
+                  fileContent = import entry.path;
                   value = if builtins.isFunction fileContent then fileContent args else fileContent;
                 in
                 {
-                  ${attrName} = value;
+                  ${entry.attrName} = value;
                 }
               else
-                { ${attrName} = buildFromDir path; }
+                { ${entry.attrName} = buildFromDir entry.path; }
             else
               { };
 
-          filteredEntries = lib.filterAttrs (name: _: shouldInclude name) entries;
-          processed = lib.mapAttrsToList processEntry filteredEntries;
+          processed = map processEntry entries;
         in
         lib.foldl' lib.recursiveUpdate { } processed;
     in

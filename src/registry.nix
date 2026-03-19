@@ -49,6 +49,7 @@
   filterf ? _: true,
 }:
 let
+  fs = import ./fs-model.nix;
   utils = import ./lib.nix;
   inherit (utils) isRegistryNode toPath;
 
@@ -62,67 +63,29 @@ let
   buildRegistry =
     root:
     let
-      entries = builtins.readDir root;
-      sortedNames = lib.sort (a: b: a < b) (builtins.attrNames entries);
+      entries = fs.listDir {
+        dir = root;
+        inherit filterf;
+        normalize = fs.normalizeAttrName { };
+        entryPointNames = [ "default.nix" ];
+      };
 
-      toAttrName =
-        name:
-        let
-          withoutNix = lib.removeSuffix ".nix" name;
-        in
-        lib.removeSuffix "_" withoutNix;
-
-      shouldInclude = name: !(lib.hasPrefix "_" name) && filterf (toString root + "/" + name);
-
-      # Build a map from attrName -> list of sources for collision detection
-      buildSourceMap =
-        let
-          addSource =
-            acc: name:
-            let
-              type = entries.${name};
-              attrName = toAttrName name;
-              path = root + "/${name}";
-              isNixFile = type == "regular" && lib.hasSuffix ".nix" name;
-              isDir = type == "directory";
-            in
-            if !shouldInclude name then
-              acc
-            else if isNixFile || isDir then
-              let
-                existing = acc.${attrName} or [ ];
-              in
-              acc // { ${attrName} = existing ++ [ { inherit name path type; } ]; }
-            else
-              acc;
-        in
-        lib.foldl' addSource { } sortedNames;
-
-      # Check for collisions and throw descriptive errors
-      checkCollisions = lib.mapAttrs (
-        attrName: sources:
-        if builtins.length sources > 1 then
-          let
-            paths = map (s: toString s.path) sources;
-            pathList = lib.concatStringsSep ", " paths;
-          in
-          throw "imp.registry: collision for attribute '${attrName}' from multiple sources: ${pathList}"
-        else
-          builtins.head sources
-      ) buildSourceMap;
+      checkCollisions = fs.selectUniqueByAttrName {
+        scope = "imp.registry";
+        entries = builtins.filter (
+          entry: entry.included && ((entry.isRegular && entry.isNixFile) || entry.isDirectory)
+        ) entries;
+      };
 
       processSource =
         attrName: source:
         let
-          inherit (source) path type;
+          inherit (source) path;
         in
-        if type == "regular" then
+        if source.isRegular then
           path
         else
-          let
-            hasDefault = builtins.pathExists (path + "/default.nix");
-          in
-          if hasDefault then path else { __path = path; } // buildRegistry path;
+          if source.hasEntryPoint then path else { __path = path; } // buildRegistry path;
     in
     lib.mapAttrs processSource checkCollisions;
 

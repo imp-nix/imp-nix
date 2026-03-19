@@ -26,29 +26,22 @@
   ```
 */
 let
+  fs = import ./fs-model.nix;
 
   /**
     Check if a path should be excluded (basename starts with `_`).
   */
-  isExcluded =
-    path:
-    let
-      str = toString path;
-      parts = builtins.filter (x: x != "" && builtins.isString x) (builtins.split "/" str);
-      basename = builtins.elemAt parts (builtins.length parts - 1);
-    in
-    builtins.substring 0 1 basename == "_";
+  isExcluded = path: fs.isHiddenName (builtins.baseNameOf (toString path));
 
   /**
     Check if a filename is a Nix file.
   */
-  isNixFile = name: builtins.match ".*\\.nix" name != null;
+  isNixFile = fs.isNixFile;
 
   /**
     Resolve symlink to actual file type.
   */
-  resolveType =
-    path: entryType: if entryType == "symlink" then builtins.readFileType path else entryType;
+  resolveType = fs.resolveType;
 
   /**
     Create a scanner with custom extraction and accumulation logic.
@@ -79,29 +72,23 @@ let
       processDir =
         acc: path:
         let
-          entries = builtins.readDir path;
-          names = builtins.attrNames entries;
+          entries = fs.listDir {
+            dir = path;
+            entryPointNames = [ "default.nix" ];
+          };
 
           process =
-            acc: name:
-            let
-              entryPath = path + "/${name}";
-              entryType = resolveType entryPath entries.${name};
-            in
-            if isExcluded entryPath then
+            acc: entry:
+            if !entry.included then
               acc
-            else if entryType == "regular" && isNixFile name then
-              processFile acc entryPath
-            else if entryType == "directory" then
-              let
-                defaultPath = entryPath + "/default.nix";
-                hasDefault = builtins.pathExists defaultPath;
-              in
-              if hasDefault then processFile acc defaultPath else processDir acc entryPath
+            else if entry.isRegular && entry.isNixFile then
+              processFile acc entry.path
+            else if entry.isDirectory then
+              if entry.hasEntryPoint then processFile acc entry.entryPoint else processDir acc entry.path
             else
               acc;
         in
-        builtins.foldl' process acc names;
+        builtins.foldl' process acc entries;
 
       processPath =
         acc: path:

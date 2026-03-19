@@ -52,15 +52,27 @@
   lib,
 }:
 let
+  fs = import ../fs-model.nix;
+
+  emptyResult = {
+    list = [ ];
+    asString = "";
+    asList = [ ];
+    asAttrs = { };
+  };
+
   /**
     Check if directory has a valid entry point.
 
     Accepts either default.nix or package.nix (nixpkgs convention).
   */
-  hasDirEntryPoint =
-    dir: name:
-    builtins.pathExists (dir + "/${name}/default.nix")
-    || builtins.pathExists (dir + "/${name}/package.nix");
+  hasDirEntryPoint = dir: name: fs.findEntryPoint {
+    path = dir + "/${name}";
+    candidates = [
+      "default.nix"
+      "package.nix"
+    ];
+  } != null;
 
   /**
     Get the entry point path for a directory.
@@ -69,11 +81,70 @@ let
   */
   getDirEntryPoint =
     dir: name:
-    let
-      defaultPath = dir + "/${name}/default.nix";
-      packagePath = dir + "/${name}/package.nix";
-    in
-    if builtins.pathExists defaultPath then defaultPath else packagePath;
+    fs.findEntryPoint {
+      path = dir + "/${name}";
+      candidates = [
+        "default.nix"
+        "package.nix"
+      ];
+    };
+
+  collectFragmentsGeneric =
+    args: dir:
+    if !builtins.pathExists dir then
+      emptyResult
+    else
+      let
+        entries = fs.listDir {
+          inherit dir;
+          excludeHidden = false;
+          entryPointNames = [
+            "default.nix"
+            "package.nix"
+          ];
+        };
+
+        validEntries = builtins.filter (
+          entry:
+          (entry.isRegular && (entry.isNixFile || fs.hasSuffix ".sh" entry.name))
+          || entry.hasEntryPoint
+        ) entries;
+
+        loadFragment =
+          entry:
+          if fs.hasSuffix ".sh" entry.name then
+            builtins.readFile entry.path
+          else
+            let
+              importPath = if entry.hasEntryPoint then entry.entryPoint else entry.path;
+              imported = import importPath;
+            in
+            if args != null && builtins.isFunction imported then imported args else imported;
+
+        fragments = map loadFragment validEntries;
+        nonStrings = builtins.filter (f: !builtins.isString f) fragments;
+        nonLists = builtins.filter (f: !builtins.isList f) fragments;
+        nonAttrs = builtins.filter (f: !lib.isAttrs f) fragments;
+        prefix = if args == null then "imp.collectFragments" else "imp.collectFragmentsWith";
+      in
+      {
+        list = fragments;
+        asString =
+          if nonStrings != [ ] then
+            throw "${prefix}: asString requires all fragments to be strings, got ${builtins.typeOf (builtins.head nonStrings)}"
+          else
+            lib.concatStringsSep "\n" fragments;
+        asList =
+          if nonLists != [ ] then
+            throw "${prefix}: asList requires all fragments to be lists, got ${builtins.typeOf (builtins.head nonLists)}"
+          else
+            lib.flatten fragments;
+        asAttrs =
+          if nonAttrs != [ ] then
+            throw "${prefix}: asAttrs requires all fragments to be attrsets, got ${builtins.typeOf (builtins.head nonAttrs)}"
+          else
+            lib.foldl' lib.recursiveUpdate { } fragments;
+      };
 
   /**
     Collect fragments from a .d directory.
@@ -93,69 +164,7 @@ let
     Returns empty results if directory doesn't exist.
   */
   collectFragments =
-    dir:
-    if !builtins.pathExists dir then
-      {
-        list = [ ];
-        asString = "";
-        asList = [ ];
-        asAttrs = { };
-      }
-    else
-      let
-        entries = builtins.readDir dir;
-        sortedNames = lib.sort (a: b: a < b) (builtins.attrNames entries);
-
-        isValidFragment =
-          name:
-          let
-            type = entries.${name};
-          in
-          if type == "regular" then
-            lib.hasSuffix ".nix" name || lib.hasSuffix ".sh" name
-          else if type == "directory" then
-            hasDirEntryPoint dir name
-          else
-            false;
-
-        validNames = builtins.filter isValidFragment sortedNames;
-
-        loadFragment =
-          name:
-          let
-            path = dir + "/${name}";
-            type = entries.${name};
-          in
-          if lib.hasSuffix ".sh" name then
-            builtins.readFile path
-          else if type == "directory" then
-            import (getDirEntryPoint dir name)
-          else
-            import path;
-
-        fragments = map loadFragment validNames;
-        nonStrings = builtins.filter (f: !builtins.isString f) fragments;
-        nonLists = builtins.filter (f: !builtins.isList f) fragments;
-        nonAttrs = builtins.filter (f: !lib.isAttrs f) fragments;
-      in
-      {
-        list = fragments;
-        asString =
-          if nonStrings != [ ] then
-            throw "imp.collectFragments: asString requires all fragments to be strings, got ${builtins.typeOf (builtins.head nonStrings)}"
-          else
-            lib.concatStringsSep "\n" fragments;
-        asList =
-          if nonLists != [ ] then
-            throw "imp.collectFragments: asList requires all fragments to be lists, got ${builtins.typeOf (builtins.head nonLists)}"
-          else
-            lib.flatten fragments;
-        asAttrs =
-          if nonAttrs != [ ] then
-            throw "imp.collectFragments: asAttrs requires all fragments to be attrsets, got ${builtins.typeOf (builtins.head nonAttrs)}"
-          else
-            lib.foldl' lib.recursiveUpdate { } fragments;
-      };
+    dir: collectFragmentsGeneric null dir;
 
   /**
     Collect fragments with arguments passed to each .nix file.
@@ -170,71 +179,7 @@ let
     Same as collectFragments but each .nix fragment is called with args.
   */
   collectFragmentsWith =
-    args: dir:
-    if !builtins.pathExists dir then
-      {
-        list = [ ];
-        asString = "";
-        asList = [ ];
-        asAttrs = { };
-      }
-    else
-      let
-        entries = builtins.readDir dir;
-        sortedNames = lib.sort (a: b: a < b) (builtins.attrNames entries);
-
-        isValidFragment =
-          name:
-          let
-            type = entries.${name};
-          in
-          if type == "regular" then
-            lib.hasSuffix ".nix" name || lib.hasSuffix ".sh" name
-          else if type == "directory" then
-            hasDirEntryPoint dir name
-          else
-            false;
-
-        validNames = builtins.filter isValidFragment sortedNames;
-
-        loadFragment =
-          name:
-          let
-            path = dir + "/${name}";
-            type = entries.${name};
-            importPath = if type == "directory" then getDirEntryPoint dir name else path;
-            imported = import importPath;
-          in
-          if lib.hasSuffix ".sh" name then
-            builtins.readFile path
-          else if builtins.isFunction imported then
-            imported args
-          else
-            imported;
-
-        fragments = map loadFragment validNames;
-        nonStrings = builtins.filter (f: !builtins.isString f) fragments;
-        nonLists = builtins.filter (f: !builtins.isList f) fragments;
-        nonAttrs = builtins.filter (f: !lib.isAttrs f) fragments;
-      in
-      {
-        list = fragments;
-        asString =
-          if nonStrings != [ ] then
-            throw "imp.collectFragmentsWith: asString requires all fragments to be strings, got ${builtins.typeOf (builtins.head nonStrings)}"
-          else
-            lib.concatStringsSep "\n" fragments;
-        asList =
-          if nonLists != [ ] then
-            throw "imp.collectFragmentsWith: asList requires all fragments to be lists, got ${builtins.typeOf (builtins.head nonLists)}"
-          else
-            lib.flatten fragments;
-        asAttrs =
-          if nonAttrs != [ ] then
-            throw "imp.collectFragmentsWith: asAttrs requires all fragments to be attrsets, got ${builtins.typeOf (builtins.head nonAttrs)}"
-          else
-            lib.foldl' lib.recursiveUpdate { } fragments;
-      };
+    args: dir: collectFragmentsGeneric args dir;
 
 in
 {

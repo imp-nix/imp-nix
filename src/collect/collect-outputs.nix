@@ -5,6 +5,10 @@
   Scans `.nix` files for `__outputs` attributes targeting flake output paths.
   Enables self-contained bundles to contribute to multiple output types.
 
+  Nested attr syntax is flattened through the shared keyed-record collector,
+  so `__outputs.a.b = ...` and `__outputs."a.b" = ...` feed the same
+  downstream output key.
+
   # Output Syntax
 
   ```nix
@@ -77,6 +81,9 @@
 */
 let
   scanner = import ../scanner.nix;
+  keyedRecords = import ./keyed-records.nix {
+    isLeaf = entry: !builtins.isAttrs entry || entry ? value || entry ? strategy || builtins.isFunction entry;
+  };
   utils = import ../lib.nix;
 
   isAttrs = builtins.isAttrs;
@@ -131,62 +138,6 @@ let
     else
       null;
 
-  # Leaf outputs have `value` or `strategy`, or are functions/non-attrsets
-  isLeafOutput = entry: !isAttrs entry || entry ? value || entry ? strategy || isFunction entry;
-
-  # Flatten nested `__outputs.perSystem.packages.foo` into `"perSystem.packages.foo"` keys
-  flattenOutputs =
-    prefix: outputs:
-    let
-      keys = builtins.attrNames outputs;
-    in
-    builtins.concatMap (
-      key:
-      let
-        entry = outputs.${key};
-        outputKey = if prefix == "" then key else "${prefix}.${key}";
-      in
-      if isLeafOutput entry then [ { inherit outputKey entry; } ] else flattenOutputs outputKey entry
-    ) keys;
-
-  processFileOutputs =
-    sourcePath: outputs:
-    let
-      flattened = flattenOutputs "" outputs;
-    in
-    builtins.foldl' (
-      acc: item:
-      let
-        entry = utils.normalizeValueStrategy item.entry;
-        outputRecord = {
-          source = toString sourcePath;
-          inherit (entry) value strategy;
-        };
-        outputKey = item.outputKey;
-      in
-      acc
-      // {
-        ${outputKey} =
-          if acc ? ${outputKey} then acc.${outputKey} ++ [ outputRecord ] else [ outputRecord ];
-      }
-    ) { } flattened;
-
-  mergeOutputs =
-    acc: newOutputs:
-    let
-      allKeys = builtins.attrNames acc ++ builtins.attrNames newOutputs;
-      uniqueKeys = builtins.foldl' (
-        keys: key: if builtins.elem key keys then keys else keys ++ [ key ]
-      ) [ ] allKeys;
-    in
-    builtins.foldl' (
-      result: key:
-      result
-      // {
-        ${key} = (acc.${key} or [ ]) ++ (newOutputs.${key} or [ ]);
-      }
-    ) { } uniqueKeys;
-
   collectOutputs = scanner.mkScanner {
     extract = importAndExtract;
     processResult =
@@ -195,7 +146,7 @@ let
         # Store deferred functors separately for later evaluation
         acc // { __deferredFunctors = (acc.__deferredFunctors or [ ]) ++ [ result.__deferredFunctor ]; }
       else
-        mergeOutputs acc (processFileOutputs path result.outputs);
+        keyedRecords.mergeKeyedRecords acc (keyedRecords.processFileDeclarations path result.outputs);
     initial = { };
   };
 

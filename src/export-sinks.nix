@@ -22,6 +22,9 @@
   * otherwise first matching `sinkDefaults` pattern wins
   * otherwise falls back to `override`
 
+  Strategy analysis (sorting, effective strategy selection, invalid/conflict
+  diagnostics) is shared with output building through `record-strategies.nix`.
+
   # Example
 
   ```nix
@@ -52,6 +55,7 @@
   enableDebug ? true,
 }:
 let
+  recordStrategies = import ./record-strategies.nix { inherit lib; };
   matchesPattern =
     pattern: key:
     let
@@ -73,16 +77,6 @@ let
       matching = builtins.filter (p: matchesPattern p sinkKey) patterns;
     in
     if matching != [ ] then sinkDefaults.${builtins.head matching} else null;
-
-  isValidStrategy =
-    s:
-    builtins.elem s [
-      "merge"
-      "override"
-      "list-append"
-      "mkMerge"
-      null
-    ];
 
   # Strategy-specific initial accumulator
   initAcc =
@@ -127,44 +121,31 @@ let
   buildSink =
     sinkKey: exportRecords:
     let
-      sorted = builtins.sort (a: b: a.source < b.source) exportRecords;
-
-      withStrategies = map (
-        record:
-        let
-          effectiveStrategy =
-            if record.strategy != null then record.strategy else findDefaultStrategy sinkKey;
-        in
-        record // { effectiveStrategy = effectiveStrategy; }
-      ) sorted;
-
-      invalidStrategies = builtins.filter (r: !isValidStrategy r.effectiveStrategy) withStrategies;
-
-      strategies = map (r: r.effectiveStrategy) withStrategies;
-      uniqueStrategies = lib.unique (builtins.filter (s: s != null) strategies);
-      hasConflict = builtins.length uniqueStrategies > 1;
-
-      conflictError =
-        let
-          strategyInfo = map (
-            r: "  - ${r.source} (strategy: ${toString r.effectiveStrategy})"
-          ) withStrategies;
-        in
-        ''
-          imp.buildExportSinks: conflicting strategies for sink '${sinkKey}'
-          Contributors:
-          ${builtins.concatStringsSep "\n" strategyInfo}
-
-          All exports to the same sink must use compatible strategies.
-        '';
-
+      resolveStrategy = record: if record.strategy != null then record.strategy else findDefaultStrategy sinkKey;
+      prepared = recordStrategies.prepare {
+        scope = "imp.buildExportSinks";
+        subject = "sink '${sinkKey}'";
+        records = exportRecords;
+        inherit resolveStrategy;
+        defaultStrategy = _resolved: "override";
+        validStrategies = [
+          "merge"
+          "override"
+          "list-append"
+          "mkMerge"
+          null
+        ];
+        formatRecord = record: "  - ${record.source} (strategy: ${toString record.__resolvedStrategy})";
+        invalidError = record: "imp.buildExportSinks: invalid strategy in ${record.source}";
+        conflictHint = "All exports to the same sink must use compatible strategies.";
+      };
       mergedValue =
         let
-          strategy = if uniqueStrategies != [ ] then builtins.head uniqueStrategies else "override";
-          initial = initAcc strategy;
+          initial = initAcc prepared.effectiveStrategy;
         in
-        builtins.foldl' (acc: record: stepStrategy strategy acc record.value) initial withStrategies;
-
+        builtins.foldl' (
+          acc: record: stepStrategy prepared.effectiveStrategy acc record.value
+        ) initial prepared.sorted;
       finalValue =
         if mergedValue ? __mkMerge then
           let
@@ -178,16 +159,12 @@ let
           mergedValue;
 
       meta = {
-        contributors = map (r: r.source) sorted;
-        strategy = if uniqueStrategies != [ ] then builtins.head uniqueStrategies else "override";
+        contributors = map (record: record.source) prepared.sorted;
+        strategy = prepared.effectiveStrategy;
       };
 
     in
-    if invalidStrategies != [ ] then
-      throw "imp.buildExportSinks: invalid strategy in ${(builtins.head invalidStrategies).source}"
-    else if hasConflict then
-      throw conflictError
-    else if enableDebug then
+    if enableDebug then
       {
         __module = finalValue;
         __meta = meta;

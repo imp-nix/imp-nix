@@ -8,193 +8,99 @@
   filterf,
 }:
 let
+  fs = import ../fs-model.nix;
+
+  hasFragmentEntries =
+    path:
+    let
+      entries = fs.listDir {
+        dir = path;
+        excludeHidden = true;
+        entryPointNames = [
+          "default.nix"
+          "package.nix"
+        ];
+      };
+    in
+    builtins.any (
+      entry: entry.included && ((entry.isRegular && entry.isNixFile) || entry.hasEntryPoint)
+    ) entries;
+
+  collectFragmentValue =
+    path:
+    let
+      entries = fs.listDir {
+        dir = path;
+        excludeHidden = true;
+        entryPointNames = [
+          "default.nix"
+          "package.nix"
+        ];
+      };
+
+      validEntries = builtins.filter (
+        entry: entry.included && ((entry.isRegular && entry.isNixFile) || entry.hasEntryPoint)
+      ) entries;
+
+      fragments = map (
+        entry:
+        treef (
+          if entry.hasEntryPoint then
+            entry.entryPoint
+          else
+            entry.path
+        )
+      ) validEntries;
+    in
+    if fragments == [ ] then null else lib.foldl' lib.recursiveUpdate { } fragments;
+
   buildTree =
     root:
     let
-      entries = builtins.readDir root;
-      sortedNames = lib.sort (a: b: a < b) (builtins.attrNames entries);
+      entries = fs.listDir {
+        dir = root;
+        inherit filterf;
+        normalize = fs.normalizeAttrName { stripFragment = true; };
+        entryPointNames = [ "default.nix" ];
+      };
 
-      toAttrName =
-        name:
-        let
-          withoutNix = lib.removeSuffix ".nix" name;
-          withoutD = lib.removeSuffix ".d" withoutNix;
-        in
-        lib.removeSuffix "_" withoutD;
+      checkCollisions = fs.selectUniqueByAttrName {
+        scope = "imp.tree";
+        entries = builtins.filter (
+          entry: entry.included && ((entry.isRegular && entry.isNixFile) || (entry.isDirectory && !entry.isFragmentDir))
+        ) entries;
+      };
 
-      isFragmentDir = name: lib.hasSuffix ".d" name;
-
-      shouldInclude = name: !(lib.hasPrefix "_" name) && filterf (toString root + "/" + name);
-
-      # Check if a .d directory has valid .nix fragments
-      hasValidFragments =
-        path:
-        let
-          fragEntries = builtins.readDir path;
-          fragNames = builtins.attrNames fragEntries;
-        in
-        builtins.any (
-          name:
-          let
-            type = fragEntries.${name};
-            dirPath = path + "/${name}";
-          in
-          if type == "regular" then
-            lib.hasSuffix ".nix" name && !(lib.hasPrefix "_" name)
-          else if type == "directory" then
-            !(lib.hasPrefix "_" name)
-            && (
-              builtins.pathExists (dirPath + "/default.nix") || builtins.pathExists (dirPath + "/package.nix")
-            )
-          else
-            false
-        ) fragNames;
-
-      # Process a .d fragment directory: import all .nix files and merge as attrsets
-      processFragmentDir =
-        path:
-        let
-          fragEntries = builtins.readDir path;
-          fragNames = lib.sort (a: b: a < b) (builtins.attrNames fragEntries);
-
-          isValidFragment =
-            name:
-            let
-              type = fragEntries.${name};
-              dirPath = path + "/${name}";
-            in
-            if type == "regular" then
-              lib.hasSuffix ".nix" name && !(lib.hasPrefix "_" name)
-            else if type == "directory" then
-              !(lib.hasPrefix "_" name)
-              && (
-                builtins.pathExists (dirPath + "/default.nix") || builtins.pathExists (dirPath + "/package.nix")
-              )
-            else
-              false;
-
-          validNames = builtins.filter isValidFragment fragNames;
-
-          loadFragment =
-            name:
-            let
-              fragPath = path + "/${name}";
-              type = fragEntries.${name};
-              # For directories, prefer default.nix, fallback to package.nix
-              entryPoint =
-                if type == "directory" then
-                  if builtins.pathExists (fragPath + "/default.nix") then
-                    fragPath + "/default.nix"
-                  else
-                    fragPath + "/package.nix"
-                else
-                  fragPath;
-            in
-            treef entryPoint;
-
-          fragments = map loadFragment validNames;
-        in
-        lib.foldl' lib.recursiveUpdate { } fragments;
-
-      # .d directories merge with base, so they're excluded from collision detection
-      buildSourceMap =
-        let
-          addSource =
-            acc: name:
-            let
-              type = entries.${name};
-              attrName = toAttrName name;
-              path = root + "/${name}";
-              isNixFile = type == "regular" && lib.hasSuffix ".nix" name;
-              isDDir = type == "directory" && isFragmentDir name;
-              isDir = type == "directory" && !isDDir;
-            in
-            if !shouldInclude name then
-              acc
-            else if isDDir then
-              acc
-            else if isNixFile || isDir then
-              let
-                existing = acc.${attrName} or [ ];
-              in
-              acc // { ${attrName} = existing ++ [ { inherit name path type; } ]; }
-            else
-              acc;
-        in
-        lib.foldl' addSource { } sortedNames;
-
-      # Check for collisions and throw descriptive errors
-      checkCollisions = lib.mapAttrs (
-        attrName: sources:
-        if builtins.length sources > 1 then
-          let
-            paths = map (s: toString s.path) sources;
-            pathList = lib.concatStringsSep ", " paths;
-          in
-          throw "imp.tree: collision for attribute '${attrName}' from multiple sources: ${pathList}"
+      fragmentValues = builtins.foldl' (
+        acc: entry:
+        if !(entry.included && entry.isFragmentDir && hasFragmentEntries entry.path) then
+          acc
         else
-          builtins.head sources
-      ) buildSourceMap;
+          acc // { ${entry.attrName} = collectFragmentValue entry.path; }
+      ) { } entries;
 
       # Process a single validated source (after collision check)
       processSource =
         attrName: source:
         let
-          inherit (source) name path type;
-          # Check for companion .d directory to merge with
-          dDir = attrName + ".d";
-          dDirPath = root + "/${dDir}";
-          hasDDir = entries ? ${dDir} && entries.${dDir} == "directory";
+          inherit (source) path;
+          fragmentValue = fragmentValues.${attrName} or null;
+          baseValue =
+            if source.isRegular then
+              treef path
+            else if source.hasEntryPoint then
+              treef path
+            else
+              buildTree path;
         in
-        if type == "regular" then
-          let
-            baseValue = treef path;
-          in
-          if hasDDir && hasValidFragments dDirPath then
-            lib.recursiveUpdate baseValue (processFragmentDir dDirPath)
-          else
-            baseValue
+        if fragmentValue == null then
+          baseValue
         else
-          let
-            hasDefault = builtins.pathExists (path + "/default.nix");
-            baseValue = if hasDefault then treef path else buildTree path;
-          in
-          if hasDDir && hasValidFragments dDirPath then
-            lib.recursiveUpdate baseValue (processFragmentDir dDirPath)
-          else
-            baseValue;
-
-      # Handle standalone .d directories (no base file/dir)
-      standaloneDDirs = lib.foldl' (
-        acc: name:
-        let
-          type = entries.${name};
-          attrName = toAttrName name;
-          path = root + "/${name}";
-          # Check if there's a base for this .d
-          baseNix = attrName + ".nix";
-          baseNixEscaped = attrName + "_.nix";
-          baseDir = attrName;
-          hasBase =
-            (entries ? ${baseNix} && shouldInclude baseNix)
-            || (entries ? ${baseNixEscaped} && shouldInclude baseNixEscaped)
-            || (entries ? ${baseDir} && entries.${baseDir} == "directory" && shouldInclude baseDir);
-        in
-        if
-          type == "directory"
-          && isFragmentDir name
-          && shouldInclude name
-          && !hasBase
-          && hasValidFragments path
-        then
-          acc // { ${attrName} = processFragmentDir path; }
-        else
-          acc
-      ) { } sortedNames;
+          lib.recursiveUpdate baseValue fragmentValue;
 
       # Combine checked sources with standalone .d directories
       processedSources = lib.mapAttrs processSource checkCollisions;
     in
-    processedSources // standaloneDDirs;
+    processedSources // builtins.removeAttrs fragmentValues (builtins.attrNames processedSources);
 in
 buildTree

@@ -31,23 +31,12 @@
   : List of bundles parent directories (e.g., [ ./nix/bundles ])
 */
 let
+  fs = import ../fs-model.nix;
   pathExists = builtins.pathExists;
-  readDir = builtins.readDir;
-  attrNames = builtins.attrNames;
   foldl' = builtins.foldl';
   toString = builtins.toString;
-  stringLength = builtins.stringLength;
-  substring = builtins.substring;
   baseNameOf = builtins.baseNameOf;
   dirOf = builtins.dirOf;
-
-  hasSuffix =
-    suffix: str:
-    let
-      strLen = stringLength str;
-      suffixLen = stringLength suffix;
-    in
-    strLen >= suffixLen && substring (strLen - suffixLen) suffixLen str == suffix;
 
   /**
     Check if a path is a directory bundle (not a .nix file).
@@ -57,7 +46,7 @@ let
     let
       pathStr = toString path;
     in
-    pathExists path && !(hasSuffix ".nix" pathStr);
+    pathExists path && !(fs.hasSuffix ".nix" pathStr);
 
   /**
     Find inner config file for a bundle directory.
@@ -69,11 +58,14 @@ let
     bundlePath:
     let
       configNix = bundlePath + "/config.nix";
-      configDir = bundlePath + "/config/default.nix";
+      configDir = fs.findEntryPoint {
+        path = bundlePath + "/config";
+        candidates = [ "default.nix" ];
+      };
     in
     if pathExists configNix then
       configNix
-    else if pathExists configDir then
+    else if configDir != null then
       configDir
     else
       null;
@@ -149,12 +141,18 @@ let
     if !pathExists bundlesDir then
       [ ]
     else
-      let
-        entries = readDir bundlesDir;
-        names = attrNames entries;
-        dirs = builtins.filter (name: entries.${name} == "directory") names;
-      in
-      map (name: bundlesDir + "/${name}") dirs;
+      map (
+        entry: entry.path
+      ) (
+        builtins.filter (entry: entry.isDirectory) (
+          fs.listDir {
+            dir = bundlesDir;
+            excludeHidden = false;
+            normalize = name: name;
+            entryPointNames = [ ];
+          }
+        )
+      );
 
   /**
     Main collection function.
