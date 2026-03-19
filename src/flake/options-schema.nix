@@ -99,8 +99,8 @@ in
       description = ''
         Extra arguments passed to all imported files.
 
-        Flake files receive: { lib, self, inputs, config, imp, registry, ... }
-        perSystem files receive: { pkgs, lib, system, self, self', inputs, inputs', config, imp, registry, ... }
+        Flake files receive: { lib, self, inputs, config, imp, exports, ... }
+        perSystem files receive: { pkgs, lib, system, self, self', inputs, inputs', config, imp, buildDeps, exports, ... }
         __outputs.perSystemTransforms builder functions receive the same perSystem args.
 
         User-provided args take precedence over defaults.
@@ -118,56 +118,18 @@ in
       '';
     };
 
-    registry = {
-      name = mkOption {
-        type = types.str;
-        default = "registry";
-        description = ''
-          Attribute name used to inject the registry into file arguments.
-
-          Change this if "registry" conflicts with other inputs or arguments.
-        '';
-        example = literalExpression ''
-          "impRegistry"
-          # Then in files:
-          # { impRegistry, ... }:
-          # { imports = [ impRegistry.modules.home ]; }
-        '';
-      };
-
+    scan = {
       src = mkOption {
-        type = types.nullOr types.path;
+        type = types.nullOr pathOrPaths;
         default = null;
         description = ''
-          Root directory to scan for building the module registry.
+          Extra collector-only source roots.
 
-          The registry maps directory structure to named modules.
-          Files can then reference modules by name instead of path.
+          These paths are scanned for `__inputs`, `__exports`, and `__host`
+          declarations, but are not imported as flake output trees.
         '';
         example = literalExpression ''
-          ./nix
-          # Structure:
-          #   nix/
-          #     users/alice/     -> registry.users.alice
-          #     modules/nixos/   -> registry.modules.nixos
-          #
-          # Usage in files:
-          #   { registry, ... }:
-          #   { imports = [ registry.modules.home ]; }
-        '';
-      };
-
-      modules = mkOption {
-        type = types.attrsOf types.unspecified;
-        default = { };
-        description = ''
-          Explicit module name -> path mappings.
-          These override auto-discovered modules from registry.src.
-        '';
-        example = literalExpression ''
-          {
-            specialModule = ./path/to/special.nix;
-          }
+          [ ./hosts ./modules ./users ]
         '';
       };
     };
@@ -340,7 +302,7 @@ in
         description = ''
           Generate nixosConfigurations by scanning for __host declarations.
 
-          When enabled, imp walks registry.src looking for .nix files that
+          When enabled, imp walks `imp.scan.src` and `imp.src` roots looking for .nix files that
           contain a __host attrset. Each such file becomes a nixosConfiguration
           entry, named after the directory (for default.nix) or filename.
 
@@ -350,7 +312,7 @@ in
           Common fields:
           * system: target platform (for example, "x86_64-linux")
           * stateVersion: value assigned to system.stateVersion
-          * bases: registry paths to config-tree roots
+          * bases: config-tree paths or `@input.path` strings
           * sinks / hmSinks: export sink paths to import
           * modules: extra modules (list or resolver function)
           * user: Home Manager user name (enables HM wiring)

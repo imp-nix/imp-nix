@@ -14,7 +14,7 @@
   Main surface area exported by imp:
   * Chainable import API (`filter`, `map`, `tree`, `configTree`, ...)
   * Collectors/builders for `__inputs`, `__outputs`, `__exports`, `__host`
-  * Registry utilities (`registry`, `imp.imports` support)
+  * Module import helpers (`imp.imports`)
   * Flake formatting helpers (`formatInputs`, `formatFlake`)
 */
 import ./imp.nix

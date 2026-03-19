@@ -12,7 +12,7 @@ let
     isPathLike
     hasOutPath
     isimp
-    toPath
+    coercePath
     ;
 in
 
@@ -33,8 +33,7 @@ in
 }:
 path:
 let
-  # Normalize registry nodes to their path
-  normalizedPath = toPath path;
+  normalizedPath = coercePath path;
 
   result =
     if pipef == null then
@@ -62,8 +61,7 @@ let
       listFilesRecursive =
         x:
         let
-          # Convert registry nodes to paths
-          p = toPath x;
+          p = coercePath x;
         in
         if isimp x then
           treeFiles x
@@ -81,7 +79,7 @@ let
       # Compose user filters with initial filter
       pathFilter = compose (and filterf initialFilter) toString;
       otherFilter = and filterf (if initf != null then initf else (_: true));
-      filter = x: if isPathLike x then pathFilter (toPath x) else otherFilter x;
+      filter = x: if isPathLike x then pathFilter (coercePath x) else otherFilter x;
 
       # Convert absolute paths to relative for consistent filtering across roots
       isFileRelative =
@@ -101,7 +99,7 @@ let
         roots:
         lib.pipe roots [
           (lib.lists.flatten)
-          (builtins.map toPath)
+          (builtins.map coercePath)
           (builtins.filter isDirectory)
           (builtins.map builtins.toString)
           (builtins.map isFileRelative)
@@ -120,14 +118,14 @@ let
         let
           mkRel = makeRelative roots;
         in
-        x: if isPathLike x then mkRel (toPath x) else x;
+        x: if isPathLike x then mkRel (coercePath x) else x;
     in
     root:
     lib.pipe
       [ roots root ]
       [
         (lib.lists.flatten)
-        (map toPath)
+        (map coercePath)
         (map listFilesRecursive)
         (lib.lists.flatten)
         (builtins.filter (

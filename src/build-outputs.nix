@@ -212,7 +212,6 @@ let
         "imp"
         "buildDeps"
         "exports"
-        "registry"
       ];
 
       looksLikePerSystemArgs =

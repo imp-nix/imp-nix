@@ -25,7 +25,7 @@
   # => { treefmt-nix = { url = "github:numtide/treefmt-nix"; }; }
 
   # Multiple paths (merged with conflict detection)
-  collectInputs [ ./nix/outputs ./nix/registry ]
+  collectInputs [ ./nix/outputs ./nix/hosts ]
   # => { treefmt-nix = { ... }; nur = { ... }; }
   ```
 

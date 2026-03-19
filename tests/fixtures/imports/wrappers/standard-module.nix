@@ -1,4 +1,4 @@
-# Standard NixOS module (not a registry wrapper)
+# Standard NixOS module (not a module wrapper)
 {
   config,
   lib,

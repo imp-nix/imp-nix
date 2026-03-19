@@ -19,10 +19,9 @@ rec {
     attrs // { ${k} = f attrs.${k}; };
 
   hasOutPath = and (x: x ? outPath) builtins.isAttrs;
-  isRegistryNode = and (x: x ? __path) builtins.isAttrs;
-  toPath = x: if isRegistryNode x then x.__path else x;
-  isPathLike = x: builtins.isPath x || builtins.isString x || hasOutPath x || isRegistryNode x;
-  isDirectory = and (x: builtins.readFileType (toPath x) == "directory") isPathLike;
+  coercePath = x: if hasOutPath x then x.outPath else x;
+  isPathLike = x: builtins.isPath x || builtins.isString x || hasOutPath x;
+  isDirectory = and (x: builtins.readFileType (coercePath x) == "directory") isPathLike;
   isimp = and (x: x ? __config.__functor) builtins.isAttrs;
   inModuleEval = and (x: x ? options) builtins.isAttrs;
 

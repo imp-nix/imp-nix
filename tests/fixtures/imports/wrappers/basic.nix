@@ -1,4 +1,4 @@
-# Basic registry wrapper: attrset with __inputs and __functor returning __module
+# Basic module wrapper: attrset with __inputs and __functor returning __module
 # Uses __functor pattern so collectInputs can extract __inputs without calling the function
 {
   __inputs = {

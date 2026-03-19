@@ -40,14 +40,10 @@ in
     expected = [ ];
   };
 
-  # Test filter with registry nodes
-  collect."test accepts registry node as path" = {
+  collect."test accepts absolute path strings" = {
     expr =
       let
-        registryLib = import ../src/registry.nix { inherit lib; };
-        registry = registryLib.buildRegistry ./fixtures/registry/basic;
-        # home.alice is a registry node with __path
-        result = lit.leaves registry.home.alice;
+        result = lit.leaves (toString ./fixtures/x);
       in
       lib.all (f: lib.hasSuffix ".nix" (toString f)) result;
     expected = true;

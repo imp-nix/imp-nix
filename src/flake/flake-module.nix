@@ -17,6 +17,7 @@
   Source roots come from:
   * `imp.src` (explicit outputs roots)
   * `imp.srcDiscover` (auto-discovered roots from project directories)
+  * `imp.scan.src` (extra collector-only roots for `__inputs`, `__exports`, `__host`)
 
   Files receive standardized arguments matching flake-parts conventions:
     * perSystem files: { pkgs, lib, system, self, self', inputs, inputs', config, ... }
@@ -53,19 +54,9 @@ let
 
   impLib = import ../.;
   utils = import ../lib.nix;
-  registryLib = import ../registry.nix { inherit lib; };
   discoverSrc = import ./discover-src.nix { inherit lib; };
 
   cfg = config.imp;
-
-  registry =
-    if cfg.registry.src == null then
-      { }
-    else
-      let
-        autoRegistry = registryLib.buildRegistry cfg.registry.src;
-      in
-      lib.recursiveUpdate autoRegistry cfg.registry.modules;
 
   imp = impLib.withLib lib;
 
@@ -87,6 +78,7 @@ let
   explicitSrcPaths = toPathList cfg.src;
   discoveredSrcPaths = discoverSrc cfg.srcDiscover;
   srcPaths = explicitSrcPaths ++ discoveredSrcPaths;
+  scanPaths = toPathList cfg.scan.src;
 
   # Get first src for single-path operations (systems.nix, formatter.d)
   firstSrc =
@@ -182,7 +174,6 @@ let
         imp
         buildDeps
         ;
-      ${cfg.registry.name} = registry;
       exports = exportSinks;
     }
     // (if perSystemConfig != null then { config = perSystemConfig; } else { })
@@ -200,7 +191,7 @@ let
     "config"
     "imp"
     "buildDeps"
-    cfg.registry.name
+    "exports"
   ]
   ++ builtins.attrNames cfg.args;
 
@@ -250,7 +241,6 @@ let
       imp
       ;
     inherit (config) systems;
-    ${cfg.registry.name} = registry;
     exports = exportSinks;
   }
   // cfg.args;
@@ -273,8 +263,8 @@ let
 
   exportsCfg = cfg.exports;
 
-  # Exports scan both registry.src and src paths
-  exportSources = toPathList cfg.registry.src ++ srcPaths;
+  # Exports scan outputs roots and collector-only scan roots
+  exportSources = srcPaths ++ scanPaths;
 
   exportSinks =
     if exportsCfg.enable && exportSources != [ ] then
@@ -294,8 +284,8 @@ let
 
   bundlePaths = toPathList cfg.bundles.src;
 
-  # Inputs scan all source paths
-  inputSources = srcPaths ++ toPathList cfg.registry.src ++ bundlePaths;
+  # Inputs scan outputs roots, collector-only scan roots, and bundles
+  inputSources = srcPaths ++ scanPaths ++ bundlePaths;
   collectedInputs =
     if flakeFileCfg.enable && inputSources != [ ] then impLib.collectInputs inputSources else { };
 
@@ -316,7 +306,7 @@ let
 
   outputsCfg = cfg.outputs;
 
-  # Outputs scan src and bundles (registry.src is for named modules, not bundles)
+  # Outputs scan outputs roots and bundles
   outputSources = srcPaths ++ bundlePaths;
 
   collectedOutputs =
@@ -341,8 +331,8 @@ let
 
   hostsCfg = cfg.hosts;
 
-  # Hosts are scanned from registry.src only
-  hostSources = toPathList cfg.registry.src;
+  # Hosts are scanned from collector-only roots and outputs roots
+  hostSources = scanPaths ++ srcPaths;
 
   collectedHosts =
     if hostsCfg.enable && hostSources != [ ] then impLib.collectHosts hostSources else { };
@@ -934,25 +924,11 @@ in
       flake.exports = exportSinks;
     })
 
-    (lib.mkIf (cfg.registry.src != null) {
-      /*
-        Expose the registry attrset as a flake output.
-
-        Evaluating `nix eval .#registry` returns the full registry structure,
-        making it available to external tools that need to validate registry
-        paths without importing the flake's Nix code.
-
-        The output mirrors the in-memory registry: nested attrsets where each
-        leaf contains a `__path` attribute pointing to the module file.
-      */
-      flake.registry = registry;
-    })
-
     (lib.mkIf (hostsCfg.enable && collectedHosts != { }) {
       /*
         Generate nixosConfigurations from __host declarations.
 
-        Files in the registry can declare hosts:
+        Files in scan roots can declare hosts:
 
           {
             __host = {

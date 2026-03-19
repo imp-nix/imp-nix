@@ -8,7 +8,6 @@ in
 // (import ./imp.nix args)
 // (import ./tree.nix args)
 // (import ./flake-file.nix args)
-// (import ./registry.nix args)
 // (import ./collect.nix args)
 // (import ./imports.nix args)
 // (import ./exports.nix args)

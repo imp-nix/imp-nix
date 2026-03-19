@@ -26,21 +26,24 @@
 
   # Path Resolution
 
-  Strings in `bases`, `sinks`, `hmSinks`, `modules` resolve as:
+  Strings in `sinks` and `hmSinks` resolve as export sink paths:
 
-  * `"hosts.shared.base"` -> `registry.hosts.shared.base`
+  * `"shared.nixos"` -> `exports.shared.nixos`
+
+  Strings in `bases` and `modules` resolve only as `@`-prefixed input paths:
+
   * `"@nixos-wsl.nixosModules.default"` -> `inputs.nixos-wsl.nixosModules.default`
+  * otherwise use raw path values
 
   # Modules as Function
 
-  The `modules` field can be a function receiving `{ registry, inputs, exports }`
-  for direct registry access, enabling static analysis:
+  The `modules` field can be a function receiving `{ inputs, exports }`:
 
   ```nix
   __host = {
-    modules = { registry, ... }: [
-      registry.mod.os.desktop.keyboard
-      registry.mod.niri
+    modules = { inputs, ... }: [
+      inputs.agenix.nixosModules.default
+      ./desktop-module.nix
     ];
   };
   ```
@@ -53,8 +56,8 @@
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inputs, exports, imp, registry };
-    users.${user}.imports = [ <hmSinks> <registry.users.${user}> ];
+    extraSpecialArgs = { inputs, exports, imp };
+    users.${user}.imports = [ <hmSinks> ];
   };
   ```
 
@@ -63,8 +66,8 @@
   ```nix
   buildHosts {
     inherit lib imp;
-    hosts = collectHosts ./registry/hosts;
-    flakeArgs = { inherit self inputs registry exports; };
+    hosts = collectHosts ./hosts;
+    flakeArgs = { inherit self inputs exports; };
     hostDefaults = { system = "x86_64-linux"; };
   }
   # => { desktop = <nixosConfiguration>; server = <nixosConfiguration>; }
@@ -81,16 +84,8 @@ let
   inherit (flakeArgs)
     self
     inputs
-    registry
     exports
     ;
-
-  resolveRegistryPath =
-    pathStr:
-    let
-      parts = lib.splitString "." pathStr;
-    in
-    lib.getAttrFromPath parts registry;
 
   resolveInputPath =
     pathStr:
@@ -102,13 +97,25 @@ let
   buildHostModules =
     hostName: hostDef:
     let
+      isAbsolutePathString = value: builtins.isString value && lib.hasPrefix "/" value;
+
+      resolveHostPath =
+        kind: value:
+        if builtins.isString value then
+          if lib.hasPrefix "@" value then
+            resolveInputPath (lib.removePrefix "@" value)
+          else if isAbsolutePathString value then
+            value
+          else
+            throw "imp.buildHosts: host '${hostName}' ${kind} '${value}' must be a path or @input.path."
+        else
+          value;
+
       host = hostDef.__host;
       configPath = hostDef.config;
       extraConfig = hostDef.extraConfig;
 
-      basePaths = map (base: if builtins.isString base then (resolveRegistryPath base).__path else base) (
-        host.bases or [ ]
-      );
+      basePaths = map (resolveHostPath "base") (host.bases or [ ]);
 
       configTreeModule =
         if basePaths != [ ] || configPath != null then
@@ -130,8 +137,6 @@ let
           let
             hmSinkModules = map resolveSink (host.hmSinks or [ ]);
             userName = host.user;
-            userRegistry =
-              if registry ? users && registry.users ? ${userName} then [ registry.users.${userName} ] else [ ];
           in
           {
             home-manager = {
@@ -140,14 +145,13 @@ let
                   inputs
                   exports
                   imp
-                  registry
                   ;
               };
               useGlobalPkgs = true;
               useUserPackages = true;
 
               users.${userName} = {
-                imports = hmSinkModules ++ imp.imports userRegistry;
+                imports = hmSinkModules;
               };
             };
           }
@@ -157,10 +161,7 @@ let
       resolveModule =
         mod:
         if builtins.isString mod then
-          if lib.hasPrefix "@" mod then
-            resolveInputPath (lib.removePrefix "@" mod)
-          else
-            resolveRegistryPath mod
+          resolveHostPath "module" mod
         else
           mod;
 
@@ -168,7 +169,7 @@ let
         let
           mods = host.modules or [ ];
         in
-        if builtins.isFunction mods then mods { inherit registry inputs exports; } else mods;
+        if builtins.isFunction mods then mods { inherit inputs exports; } else mods;
 
       extraModules = map resolveModule rawModules;
 
@@ -200,7 +201,6 @@ let
           inputs
           exports
           imp
-          registry
           ;
       };
       modules = buildHostModules hostName hostDef;

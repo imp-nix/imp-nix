@@ -159,7 +159,7 @@ Imp generates `nixosConfigurations.desktop`, importing the specified sinks and w
   imports = [ inputs.imp.flakeModules.default ];
   imp = {
     src = ./outputs;
-    registry.src = [ ./mod ./hosts ./users ];
+    scan.src = [ ./mod ./hosts ./users ];
     hosts.enable = true;
     exports.enable = true;
   };

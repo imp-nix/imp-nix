@@ -7,7 +7,6 @@ let
 
   testPath = ./fixtures/collect/hosts;
   hostsPath = testPath + "/hosts";
-  registryPath = testPath;
 in
 {
   # Test basic host collection
@@ -64,21 +63,15 @@ in
     expected = true;
   };
 
-  hosts."test modules function receives registry" = {
+  hosts."test modules function receives inputs" = {
     expr =
       let
         collected = collectHosts hostsPath;
         host = collected.func-host.__host;
-        # Create a mock registry
-        mockRegistry = {
-          mod.test-module = {
-            __path = "/mock/path";
-          };
-        };
-        # Call the modules function
         result = host.modules {
-          registry = mockRegistry;
-          inputs = { };
+          inputs = {
+            test.module = "/mock/path";
+          };
           exports = { };
         };
       in
@@ -86,27 +79,20 @@ in
     expected = true;
   };
 
-  hosts."test modules function can access registry nodes" = {
+  hosts."test modules function can access input modules" = {
     expr =
       let
         collected = collectHosts hostsPath;
         host = collected.func-host.__host;
-        # Create a mock registry with a test module
-        mockRegistry = {
-          mod.test-module = {
-            __path = "/mock/path/to/module.nix";
-            __isRegistryNode = true;
-          };
-        };
-        # Call the modules function
         result = host.modules {
-          registry = mockRegistry;
-          inputs = { };
+          inputs = {
+            test.module = "/mock/path/to/module.nix";
+          };
           exports = { };
         };
         firstMod = builtins.elemAt result 0;
       in
-      firstMod.__path == "/mock/path/to/module.nix";
+      firstMod == "/mock/path/to/module.nix";
     expected = true;
   };
 }

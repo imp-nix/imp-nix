@@ -1,4 +1,4 @@
-# Registry wrapper with nested options and imports usage
+# Module wrapper with nested options and imports usage
 # Uses __functor pattern so collectInputs can extract __inputs without calling the function
 {
   __inputs = {

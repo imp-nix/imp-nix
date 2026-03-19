@@ -25,7 +25,7 @@
   # Example
 
   ```nix
-  collectHosts ./registry/hosts
+  collectHosts ./hosts
   # => {
   #   desktop = { __host = { system = "x86_64-linux"; ... }; config = ./desktop/config; };
   #   server = { __host = { ... }; ... };
@@ -39,10 +39,10 @@
     __host = {
       system = "x86_64-linux";
       stateVersion = "24.11";
-      bases = [ "hosts.shared.base" ];       # registry paths to base config trees
+      bases = [ ../shared/base ];            # base config tree paths or @input.path strings
       sinks = [ "shared.nixos" ];            # export sink paths for NixOS
       hmSinks = [ "shared.hm" ];             # export sink paths for Home Manager
-      modules = [ "mod.nixos.ssh" ];         # or function: { registry, ... }: [ ... ]
+      modules = [ ../modules/ssh.nix ];      # or function: { inputs, exports }: [ ... ]
       user = "alice";                        # HM integration username
     };
     config = ./config;
@@ -50,7 +50,7 @@
   }
   ```
 
-  Modules resolve as registry paths, `@`-prefixed input paths, or raw values.
+  Modules resolve as `@`-prefixed input paths or raw values.
 */
 let
   scanner = import ../scanner.nix;

@@ -405,30 +405,30 @@ in
   new = callable;
 
   /**
-    Build a modules list from mixed items. Handles paths, registry nodes, and modules.
+    Build a modules list from mixed items. Handles paths and modules.
 
-    For registry nodes or paths that import to attrsets with `__module`,
-    extracts just the `__module`. For functions that are "registry wrappers"
-    (take `inputs` arg and return attrsets with `__module`), wraps them to
+    For paths that import to attrsets with `__module`, extracts just the
+    `__module`. For functions that are module wrappers (take flake-style args
+    like `inputs` or `exports` and return attrsets with `__module`), wraps them to
     extract `__module` from the result.
 
-    This allows registry modules to declare `__inputs` and `__overlays`
+    This allows wrapper files to declare `__inputs` and similar metadata
     without polluting the module system.
 
     Wrapper detection heuristic:
-    * treated as a registry wrapper when function args include flake-level
-      fields (`inputs`, `exports`, `registry`)
+    * treated as a module wrapper when function args include flake-level
+      fields (`inputs`, `exports`, `imp`, `self`)
     * not treated as wrapper when module args (`config`, `pkgs`) are present
 
-    For `__functor` registry files this yields two-stage evaluation:
+    For `__functor` wrapper files this yields two-stage evaluation:
     wrapper -> `{ __module = ...; }` -> final module.
 
     # Example
 
     ```nix
     modules = imp.imports [
-      registry.hosts.server
-      registry.modules.nixos.base
+      ./hosts/server
+      ./modules/nixos/base.nix
       ./local-module.nix
       inputs.home-manager.nixosModules.home-manager
       { services.openssh.enable = true; }
@@ -438,29 +438,28 @@ in
     # Arguments
 
     items
-    : List of paths, registry nodes, or module values.
+    : List of paths or module values.
   */
   imports =
     items:
     let
-      registryLib = import ./registry.nix { lib = updated.lib or builtins; };
       isPath = p: builtins.isPath p || (builtins.isString p && builtins.substring 0 1 p == "/");
 
-      # Registry wrappers: functions taking flake-level args (inputs, exports, registry)
-      # that are NOT NixOS module functions (which take config, pkgs, etc.)
+      # Wrapper functions take flake-level args and return attrsets with __module.
+      # Standard NixOS modules take config/pkgs and are left alone.
       # Also handles attrsets with `__functor` (callable attrsets)
-      isRegistryWrapper =
+      isModuleWrapper =
         value:
         let
           fn = if builtins.isAttrs value && value ? __functor then value.__functor value else value;
           args = if builtins.isFunction fn then builtins.functionArgs fn else { };
-          hasFlakeArgs = args ? inputs || args ? exports || args ? registry;
+          hasFlakeArgs = args ? inputs || args ? exports || args ? imp || args ? self;
           hasModuleArgs = args ? config || args ? pkgs;
         in
         hasFlakeArgs && !hasModuleArgs;
 
       # For attrsets with `__module`, extract it directly.
-      # For registry wrapper functions (or `__functor` attrsets), create a wrapper that calls the function,
+      # For module wrapper functions (or `__functor` attrsets), create a wrapper that calls the function,
       # extracts `__module`, and calls it with module args. Explicit arg declarations
       # are required because the module system uses `builtins.functionArgs`.
       extractModule =
@@ -469,7 +468,7 @@ in
           value.__module
         else if
           (builtins.isFunction value || (builtins.isAttrs value && value ? __functor))
-          && isRegistryWrapper value
+          && isModuleWrapper value
         then
           {
             config ? null,
@@ -479,7 +478,6 @@ in
             modulesPath ? null,
             inputs ? null,
             exports ? null,
-            registry ? null,
             osConfig ? null,
             ...
           }@args:
@@ -492,13 +490,7 @@ in
           value;
 
       process =
-        item:
-        if registryLib.isRegistryNode item then
-          extractModule (import item.__path)
-        else if isPath item then
-          extractModule (import item)
-        else
-          item;
+        item: if isPath item then extractModule (import item) else item;
     in
     builtins.map process items;
 

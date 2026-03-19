@@ -36,7 +36,7 @@ let
     # => { treefmt-nix = { url = "github:numtide/treefmt-nix"; }; }
 
     # Multiple paths
-    imp.collectInputs [ ./outputs ./registry ]
+    imp.collectInputs [ ./outputs ./hosts ]
     # => { treefmt-nix = { ... }; nur = { ... }; }
     ```
 
@@ -70,7 +70,7 @@ let
     # Example
 
     ```nix
-    imp.collectExports ./registry
+    imp.collectExports ./nix
     # => {
     #   "nixos.role.desktop" = [
     #     {
@@ -101,7 +101,7 @@ let
     ```nix
     buildExportSinks {
       lib = nixpkgs.lib;
-      collected = imp.collectExports ./registry;
+      collected = imp.collectExports ./nix;
       sinkDefaults = {
         "nixos.*" = "merge";
         "hm.*" = "merge";
@@ -140,7 +140,7 @@ let
     # Example
 
     ```nix
-    imp.collectHosts ./registry/hosts
+    imp.collectHosts ./hosts
     # => {
     #   desktop = {
     #     __host = { system = "x86_64-linux"; stateVersion = "24.11"; ... };
@@ -169,7 +169,7 @@ let
       lib = nixpkgs.lib;
       imp = impWithLib;
       hosts = imp.collectHosts ./hosts;
-      flakeArgs = { self, inputs, registry, exports, ... };
+      flakeArgs = { self, inputs, exports, ... };
     }
     # => { desktop = <nixosConfiguration>; vm = <nixosConfiguration>; }
     ```
@@ -186,7 +186,7 @@ let
     : Output from collectHosts.
 
     flakeArgs
-    : Standard flake args { self, inputs, registry, exports, ... }.
+    : Standard flake args { self, inputs, exports, ... }.
 
     hostDefaults
     : Default values for host config (optional).
@@ -265,9 +265,6 @@ let
 
   flakeFormat = import ./flake/format-flake.nix;
   inherit (flakeFormat) formatInputs formatFlake;
-
-  # Registry utilities (requires lib)
-  registryModule = import ./registry.nix;
 
   /**
     Convenience function combining collectInputs and formatFlake.
@@ -376,17 +373,7 @@ let
               formatInputs
               formatFlake
               collectAndFormatFlake
-              registryModule
               ;
-
-            # Convenience: build registry with current lib
-            # Usage: (imp.withLib lib).registry ./nix
-            registry =
-              path:
-              if updated.lib == null then
-                throw "You need to call withLib before using registry."
-              else
-                (registryModule { lib = updated.lib; }).buildRegistry path;
 
             # Convenience: collect and build export sinks with current lib
             # Usage: (imp.withLib lib).exportSinks { ... } ./nix

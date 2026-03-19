@@ -1,4 +1,4 @@
-# Registry wrapper with overlays
+# Module wrapper with overlays
 # Uses __functor pattern so collectInputs can extract __inputs without calling the function
 {
   __inputs = {

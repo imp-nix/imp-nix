@@ -1,5 +1,5 @@
 {
-  description = "A Nix library for organizing flakes with directory-based imports, named module registries, and automatic input collection.";
+  description = "A Nix library for organizing flakes with directory-based imports and automatic input collection.";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -56,7 +56,6 @@
 
         imp = {
           src = ./outputs;
-          registry.src = ./src;
           exports.enable = false;
           args = {
             treefmt-nix = inputs.treefmt-nix;

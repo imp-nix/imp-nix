@@ -69,21 +69,21 @@ in
   };
 
   collectInputs."test extracts __inputs from __functor pattern" = {
-    expr = it.collectInputs ./fixtures/registry/wrappers/basic.nix;
+    expr = it.collectInputs ./fixtures/imports/wrappers/basic.nix;
     expected = {
       example.url = "github:example/repo";
     };
   };
 
   collectInputs."test extracts __inputs from attrset with __module" = {
-    expr = it.collectInputs ./fixtures/registry/wrappers/attrset-with-module.nix;
+    expr = it.collectInputs ./fixtures/imports/wrappers/attrset-with-module.nix;
     expected = {
       static.url = "github:static/input";
     };
   };
 
   collectInputs."test collects from __functor pattern directory" = {
-    expr = builtins.attrNames (it.collectInputs ./fixtures/registry/wrappers);
+    expr = builtins.attrNames (it.collectInputs ./fixtures/imports/wrappers);
     expected = [
       "example"
       "foo"
@@ -95,7 +95,7 @@ in
 
   collectInputs."test accepts list of paths" = {
     expr = it.collectInputs [
-      ./fixtures/registry/wrappers/basic.nix
+      ./fixtures/imports/wrappers/basic.nix
       ./fixtures/collect/inputs/outputs/perSystem/formatter.nix
     ];
     expected = {

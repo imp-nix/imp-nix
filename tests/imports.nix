@@ -4,14 +4,13 @@
 }:
 let
   lit = imp.withLib lib;
-  registryLib = import ../src/registry.nix { inherit lib; };
 in
 {
-  # Basic registry wrapper detection
-  imports."test extracts __module from registry wrapper function" = {
+  # Basic wrapper detection
+  imports."test extracts __module from module wrapper function" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry/wrappers/basic.nix ];
+        modules = lit.imports [ ./fixtures/imports/wrappers/basic.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.basic;
@@ -21,7 +20,7 @@ in
   imports."test extracts __module from attrset with __module" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry/wrappers/attrset-with-module.nix ];
+        modules = lit.imports [ ./fixtures/imports/wrappers/attrset-with-module.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.attrsetModule;
@@ -31,7 +30,7 @@ in
   imports."test passes through standard modules unchanged" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry/wrappers/standard-module.nix ];
+        modules = lit.imports [ ./fixtures/imports/wrappers/standard-module.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.standard;
@@ -42,9 +41,9 @@ in
     expr =
       let
         modules = lit.imports [
-          ./fixtures/registry/wrappers/basic.nix
-          ./fixtures/registry/wrappers/standard-module.nix
-          ./fixtures/registry/wrappers/attrset-with-module.nix
+          ./fixtures/imports/wrappers/basic.nix
+          ./fixtures/imports/wrappers/standard-module.nix
+          ./fixtures/imports/wrappers/attrset-with-module.nix
         ];
         evaluated = lib.evalModules { inherit modules; };
       in
@@ -54,26 +53,26 @@ in
     expected = true;
   };
 
-  imports."test registry wrapper __module can set config values" = {
+  imports."test module wrapper __module can set config values" = {
     expr =
       let
         optionsModule = {
-          options.test.fromRegistry = lib.mkOption {
+          options.test.fromWrapper = lib.mkOption {
             type = lib.types.str;
             default = "";
           };
         };
-        modules = [ optionsModule ] ++ lit.imports [ ./fixtures/registry/wrappers/config-module.nix ];
+        modules = [ optionsModule ] ++ lit.imports [ ./fixtures/imports/wrappers/config-module.nix ];
         evaluated = lib.evalModules { inherit modules; };
       in
-      evaluated.config.test.fromRegistry;
-    expected = "hello from registry wrapper";
+      evaluated.config.test.fromWrapper;
+    expected = "hello from module wrapper";
   };
 
   imports."test nested module with mkIf works" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry/wrappers/nested-module.nix ];
+        modules = lit.imports [ ./fixtures/imports/wrappers/nested-module.nix ];
         evaluated = lib.evalModules {
           inherit modules;
           specialArgs = { };
@@ -86,25 +85,13 @@ in
   imports."test nested module mkIf activates when enabled" = {
     expr =
       let
-        modules = lit.imports [ ./fixtures/registry/wrappers/nested-module.nix ] ++ [
+        modules = lit.imports [ ./fixtures/imports/wrappers/nested-module.nix ] ++ [
           { test.nested.enable = true; }
         ];
         evaluated = lib.evalModules { inherit modules; };
       in
       evaluated.config.test.nested.value;
     expected = "enabled-value";
-  };
-
-  # Registry node handling
-  imports."test accepts registry nodes with __path" = {
-    expr =
-      let
-        registry = registryLib.buildRegistry ./fixtures/registry/wrappers;
-        modules = lit.imports [ registry.basic ];
-        evaluated = lib.evalModules { inherit modules; };
-      in
-      evaluated.config.test.basic;
-    expected = true;
   };
 
   # Inline attrset modules pass through
@@ -126,10 +113,10 @@ in
   };
 
   # Heuristic detection: takes inputs but not config/pkgs
-  imports."test isRegistryWrapper heuristic excludes config+inputs" = {
+  imports."test wrapper heuristic excludes config+inputs" = {
     expr =
       let
-        # A function with both config and inputs is NOT a registry wrapper
+        # A function with both config and inputs is not treated as a wrapper
         mixedModule =
           {
             config,

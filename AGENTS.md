@@ -22,7 +22,6 @@ Get the file path and read the file in one:
   * `TREE_FRAGMENTS` (fragment directory composition)
   * `CONFIG_TREE` (config tree mapping)
   * `CONFIG_TREE_MERGE` (config tree merge behavior)
-  * `REGISTRY` (registry discovery and resolution)
   * `EXPORT_SINKS` (export sink merge strategies)
   * `COLLECT_INPUTS` (input declaration collection)
   * `COLLECT_OUTPUTS` (output declaration collection)
