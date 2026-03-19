@@ -21,8 +21,7 @@ let
   attrNames = builtins.attrNames;
   sort = lib.sort;
 
-  isHiddenName =
-    name: builtins.stringLength name > 0 && builtins.substring 0 1 name == "_";
+  isHiddenName = name: builtins.stringLength name > 0 && builtins.substring 0 1 name == "_";
 
   discoverFromSpec =
     spec:
@@ -46,7 +45,9 @@ let
       candidates = builtins.map (name: root + "/${name}/${suffix}") childDirs;
     in
     builtins.seq rootGuard (
-      builtins.filter (candidate: pathExists candidate && readFileType candidate == "directory") candidates
+      builtins.filter (
+        candidate: pathExists candidate && readFileType candidate == "directory"
+      ) candidates
     );
 in
 specs: builtins.concatMap discoverFromSpec specs

@@ -66,13 +66,15 @@ let
 
     Accepts either default.nix or package.nix (nixpkgs convention).
   */
-  hasDirEntryPoint = dir: name: fs.findEntryPoint {
-    path = dir + "/${name}";
-    candidates = [
-      "default.nix"
-      "package.nix"
-    ];
-  } != null;
+  hasDirEntryPoint =
+    dir: name:
+    fs.findEntryPoint {
+      path = dir + "/${name}";
+      candidates = [
+        "default.nix"
+        "package.nix"
+      ];
+    } != null;
 
   /**
     Get the entry point path for a directory.
@@ -106,8 +108,7 @@ let
 
         validEntries = builtins.filter (
           entry:
-          (entry.isRegular && (entry.isNixFile || fs.hasSuffix ".sh" entry.name))
-          || entry.hasEntryPoint
+          (entry.isRegular && (entry.isNixFile || fs.hasSuffix ".sh" entry.name)) || entry.hasEntryPoint
         ) entries;
 
         loadFragment =
@@ -163,8 +164,7 @@ let
 
     Returns empty results if directory doesn't exist.
   */
-  collectFragments =
-    dir: collectFragmentsGeneric null dir;
+  collectFragments = dir: collectFragmentsGeneric null dir;
 
   /**
     Collect fragments with arguments passed to each .nix file.
@@ -178,8 +178,7 @@ let
 
     Same as collectFragments but each .nix fragment is called with args.
   */
-  collectFragmentsWith =
-    args: dir: collectFragmentsGeneric args dir;
+  collectFragmentsWith = args: dir: collectFragmentsGeneric args dir;
 
 in
 {

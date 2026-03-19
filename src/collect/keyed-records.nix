@@ -44,14 +44,12 @@ let
       in
       acc
       // {
-        ${item.dottedKey} =
-          (acc.${item.dottedKey} or [ ])
-          ++ [
-            {
-              source = toString sourcePath;
-              inherit (entry) value strategy;
-            }
-          ];
+        ${item.dottedKey} = (acc.${item.dottedKey} or [ ]) ++ [
+          {
+            source = toString sourcePath;
+            inherit (entry) value strategy;
+          }
+        ];
       }
     ) { } flattened;
 

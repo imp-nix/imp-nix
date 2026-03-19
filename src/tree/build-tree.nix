@@ -43,13 +43,7 @@ let
       ) entries;
 
       fragments = map (
-        entry:
-        treef (
-          if entry.hasEntryPoint then
-            entry.entryPoint
-          else
-            entry.path
-        )
+        entry: treef (if entry.hasEntryPoint then entry.entryPoint else entry.path)
       ) validEntries;
     in
     if fragments == [ ] then null else lib.foldl' lib.recursiveUpdate { } fragments;
@@ -67,7 +61,9 @@ let
       checkCollisions = fs.selectUniqueByAttrName {
         scope = "imp.tree";
         entries = builtins.filter (
-          entry: entry.included && ((entry.isRegular && entry.isNixFile) || (entry.isDirectory && !entry.isFragmentDir))
+          entry:
+          entry.included
+          && ((entry.isRegular && entry.isNixFile) || (entry.isDirectory && !entry.isFragmentDir))
         ) entries;
       };
 
@@ -93,10 +89,7 @@ let
             else
               buildTree path;
         in
-        if fragmentValue == null then
-          baseValue
-        else
-          lib.recursiveUpdate baseValue fragmentValue;
+        if fragmentValue == null then baseValue else lib.recursiveUpdate baseValue fragmentValue;
 
       # Combine checked sources with standalone .d directories
       processedSources = lib.mapAttrs processSource checkCollisions;

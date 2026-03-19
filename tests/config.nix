@@ -13,9 +13,9 @@ in
       let
         result = collectConfig [ fixturesPath ];
         configKey = builtins.head (
-          builtins.filter (k: lib.hasSuffix "bundle-with-config" k && !(lib.hasSuffix "bundle-with-config-dir" k)) (
-            builtins.attrNames result
-          )
+          builtins.filter (
+            k: lib.hasSuffix "bundle-with-config" k && !(lib.hasSuffix "bundle-with-config-dir" k)
+          ) (builtins.attrNames result)
         );
       in
       result.${configKey} ? inner;
@@ -49,9 +49,9 @@ in
       let
         result = collectConfig [ fixturesPath ];
         configKey = builtins.head (
-          builtins.filter (k: lib.hasSuffix "bundle-with-config" k && !(lib.hasSuffix "bundle-with-config-dir" k)) (
-            builtins.attrNames result
-          )
+          builtins.filter (
+            k: lib.hasSuffix "bundle-with-config" k && !(lib.hasSuffix "bundle-with-config-dir" k)
+          ) (builtins.attrNames result)
         );
       in
       result.${configKey}.inner.value.message;
@@ -87,9 +87,9 @@ in
       let
         result = collectConfig [ fixturesPath ];
         configKey = builtins.head (
-          builtins.filter (k: lib.hasSuffix "bundle-with-config" k && !(lib.hasSuffix "bundle-with-config-dir" k)) (
-            builtins.attrNames result
-          )
+          builtins.filter (
+            k: lib.hasSuffix "bundle-with-config" k && !(lib.hasSuffix "bundle-with-config-dir" k)
+          ) (builtins.attrNames result)
         );
       in
       lib.hasSuffix "config.nix" result.${configKey}.inner.source;

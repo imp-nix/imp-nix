@@ -141,9 +141,7 @@ let
     if !pathExists bundlesDir then
       [ ]
     else
-      map (
-        entry: entry.path
-      ) (
+      map (entry: entry.path) (
         builtins.filter (entry: entry.isDirectory) (
           fs.listDir {
             dir = bundlesDir;

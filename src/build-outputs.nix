@@ -162,11 +162,7 @@ let
       scope = "imp.buildOutputs";
       subject = "output '${outputKey}'";
       inherit records;
-      defaultStrategy = resolved:
-        if builtins.length resolved > 1 then
-          "merge"
-        else
-          "override";
+      defaultStrategy = resolved: if builtins.length resolved > 1 then "merge" else "override";
       handlers = {
         override = state: (lib.last state.sorted).value;
         merge =
@@ -261,11 +257,7 @@ let
         scope = "imp.buildOutputs";
         subject = "perSystemTransforms output '${outputKey}'";
         inherit records;
-        defaultStrategy = resolved:
-          if builtins.length resolved > 1 then
-            "merge"
-          else
-            "override";
+        defaultStrategy = resolved: if builtins.length resolved > 1 then "merge" else "override";
         conflictHint = "All contributions to the same output must use compatible strategies.";
       };
     in

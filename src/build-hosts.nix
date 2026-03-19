@@ -158,12 +158,7 @@ let
         else
           { };
 
-      resolveModule =
-        mod:
-        if builtins.isString mod then
-          resolveHostPath "module" mod
-        else
-          mod;
+      resolveModule = mod: if builtins.isString mod then resolveHostPath "module" mod else mod;
 
       rawModules =
         let

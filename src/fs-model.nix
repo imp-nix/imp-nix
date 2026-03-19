@@ -93,7 +93,14 @@ let
       path = dir + "/${name}";
       resolvedType = resolveType path type;
       hidden = isHiddenName name;
-      entryPoint = if resolvedType == "directory" then findEntryPoint { inherit path; candidates = entryPointNames; } else null;
+      entryPoint =
+        if resolvedType == "directory" then
+          findEntryPoint {
+            inherit path;
+            candidates = entryPointNames;
+          }
+        else
+          null;
     in
     {
       inherit

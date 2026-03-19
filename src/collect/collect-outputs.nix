@@ -82,7 +82,8 @@
 let
   scanner = import ../scanner.nix;
   keyedRecords = import ./keyed-records.nix {
-    isLeaf = entry: !builtins.isAttrs entry || entry ? value || entry ? strategy || builtins.isFunction entry;
+    isLeaf =
+      entry: !builtins.isAttrs entry || entry ? value || entry ? strategy || builtins.isFunction entry;
   };
   utils = import ../lib.nix;
 

@@ -489,8 +489,7 @@ in
         else
           value;
 
-      process =
-        item: if isPath item then extractModule (import item) else item;
+      process = item: if isPath item then extractModule (import item) else item;
     in
     builtins.map process items;
 

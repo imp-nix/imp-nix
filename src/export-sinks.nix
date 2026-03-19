@@ -121,7 +121,8 @@ let
   buildSink =
     sinkKey: exportRecords:
     let
-      resolveStrategy = record: if record.strategy != null then record.strategy else findDefaultStrategy sinkKey;
+      resolveStrategy =
+        record: if record.strategy != null then record.strategy else findDefaultStrategy sinkKey;
       prepared = recordStrategies.prepare {
         scope = "imp.buildExportSinks";
         subject = "sink '${sinkKey}'";
